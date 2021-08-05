@@ -1,0 +1,21 @@
+## Welcome to the program that calculates DNA Coated colloid interactions
+
+This program was created by Sophie Marbach on August 5th, 2021
+
+## To simulate a melting curve simply run the example in the analysis folder
+
+To do that simply run the Launch_MeltingCurve.py with your favorite python program. It should output melting curve information and an .eps plot of the melting curve. 
+
+The program does 3 runs to refine the analysis around the melting transition that takes a total of ~1min on a standard computer. 
+
+In command line
+
+cd analysis/ 
+python 3 Launch_MeltingCurve.py
+
+## other information 
+
+The program also saves data information as defaultSave.pickle. 
+In a future release we will explain how to extract further information from this pickle file such as potential profiles and so on and so forth. 
+
+ 
