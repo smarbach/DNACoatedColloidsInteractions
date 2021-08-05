@@ -25,7 +25,7 @@ import matplotlib
 from matplotlib.ticker import (MultipleLocator, FormatStrFormatter,
                                AutoMinorLocator)
 
-import cmocean
+#import cmocean
 import pickle
 
 

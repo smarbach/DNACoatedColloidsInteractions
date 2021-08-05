@@ -95,11 +95,11 @@ for iT in range(len(plottemperatureFast)):
 print('The melting T was',Tm)
 
 
-fig, ax = plt.subplots(figsize=[3.6,1.5])
+fig, ax = plt.subplots(figsize=[3.6,2.5])
 
 ax.plot(plottemperatureFast,punbound,':o', \
               color='mediumblue', lw = 1, ms = 2, mew=1, \
-              alpha=0.8,mec='mediumblue',  label = 'Melting curve') 
+              mec='mediumblue',  label = 'Melting curve') 
 
 ax.plot([Tm,Tm],[0,100000], ':', color = 'gray', lw = 1.0, label = '$T_m = ${:.1f}%$^\circ$ C'.format(Tm) )
 

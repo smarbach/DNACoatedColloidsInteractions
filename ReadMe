@@ -14,6 +14,12 @@ In command line
 cd analysis/ 
 python 3 Launch_MeltingCurve.py
 
+## Requirements
+
+This code runs under python3
+You may have to install lmfit
+pip3 install lmfit
+
 ## other information 
 
 The program also saves data information as defaultSave.pickle. 
