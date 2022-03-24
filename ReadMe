@@ -27,8 +27,9 @@ python 3 Launch_energyProfile.py
 ## Requirements
 
 This code runs under python3
-You may have to install lmfit
+You may have to install: lmfit, joblib
 pip3 install lmfit
+pip3 install joblib
 
 ## other information 
 
