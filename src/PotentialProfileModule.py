@@ -104,7 +104,11 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
     elif DNAmodel == 'ssDNA':
         bDNA = 0.56 #length (in nm) of a ssDNA nucleotide accounting for angles, from Chen paper
         #and ellDNA was defined previously
-
+    elif DNAmodel == 'crocker':
+        bDNA = 40/65
+        ellDNA = 5
+    elif DNAmodel == 'longssDNA':
+        bDNA = 40/65
     print('the retained persistence length for DNA (at that salt concentration) is (nm):',ellDNA)
 
 
@@ -206,7 +210,7 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
     else:
         accountForF127Stretch = False
         
-    Emins,Ebridgeonly,heights1b,heights2b,heights2t,heights1t,elleb,ellet,eVb,eVt,Nb,Nt,hrest,hrestt,sigmab,sigmat = \
+    Emins,Ebridgeonly,heights1b,heights2b,heights2t,heights1t,elleb,ellet,eVb,eVt,Nb,Nt,hrest,hrestt,sigmab,sigmat,lbot,ltop = \
             calculateCompressedHeights(N1b,N2b,N2t,N1t,ell1,ell2,eVfac1,eVfac2,sigmab,sigmat,allheights-h0b-h0t, \
                                       bridging*0,accountForF127Stretch,mushroomFlag,slideType)  
         #print(Emins)
@@ -268,7 +272,8 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
             phiVdW[:][idT] = VanDerWaalsPotentialFull(T - Tbase,saltConcentration,allheights,Rt,slideType,srcpath,optcolloidcolloidFlag)    
         elif optvdwFlag == 1:
             phiVdW[:][idT] = VanDerWaalsPotentialDejarguin(T - Tbase,saltConcentration,allheights,Rt,slideType,srcpath,optcolloidcolloidFlag)    
-        
+        elif optvdwFlag == 0:
+            phiVdW[:][idT] = [0 for h in allheights]
         
         
         if Nb+Nt == 0:
@@ -565,7 +570,7 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
     #print(sigmastickyb,sigmastickyt,Rt0)
     areaFactor = min(sigmastickyb,sigmastickyt)*pi*Rt0**2
     hMinsT,hAvesT,nConnectedT,areaT,depthT,widthT,xvalues,svalues,sticky,punbound,deltaGeff,Rconnected, NAves, nInvolvedT\
-        = calculateMicroscopicDetails(allheights,phikT,NBridge,Allsigmaabs,AllKabs,0.9,Rt0,lent,criticalHeight,optcolloidcolloidFlag,gravityFactors,areaFactor)
+        = calculateMicroscopicDetails(allheights,phikT,phiBridge,NBridge,Allsigmaabs,AllKabs,0.9,Rt0,lent,criticalHeight,optcolloidcolloidFlag,gravityFactors,areaFactor)
     #hAvesT = Lvalues
     # indT = 0
     # for rC in Rconnected:

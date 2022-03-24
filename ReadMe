@@ -1,11 +1,11 @@
 ## Welcome to the program that calculates DNA Coated colloid interactions
 
 This program was created by Sophie Marbach on August 5th, 2021
-Please cite F. Cui, S. Marbach, J. A. Zheng, M. Holmes-Cerfon, D. J. Pine, to appear if you use this software !!!
+Please cite F. Cui, S. Marbach, J. A. Zheng, M. Holmes-Cerfon, D. J. Pine, to appear in Nat. Comm. 2022 if you use this software !!!
 
 ## To simulate a melting curve simply run the example in the analysis folder
 
-To do that simply run the Launch_MeltingCurve.py with your favorite python program. It should output melting curve information and an .eps plot of the melting curve. 
+To do that simply run the Launch_MeltingCurve.py with your favorite python program (located in the analysis/ folder). It should output melting curve information and an .eps plot of the melting curve. 
 
 The program does 3 runs to refine the analysis around the melting transition that takes a total of ~1min on a standard computer. 
 
@@ -13,6 +13,16 @@ In command line
 
 cd analysis/ 
 python 3 Launch_MeltingCurve.py
+
+## To just launch a potential profile calculations for your favorite DNA coated colloids then you can simply run one!
+
+To do that run the Launch_energyProfile.py in the analysis folder. 
+The program will output a plot with the energy profile and will break down the contributions between steric, binding, van der Waals etc. 
+
+In command line
+
+cd analysis/
+python 3 Launch_energyProfile.py 
 
 ## Requirements
 

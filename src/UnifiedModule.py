@@ -490,7 +490,7 @@ def facingPotentialUnifiedBridgeAssymetric(Nb,ellb,sigmab,eVb,Nt,ellt,sigmat,eVt
         if len(fractionfed) > 0:
             if fractionfed[ih] > 0:
                 dGeff = - np.log(fractionfed[ih]) #the location of this center position may not come from where I intend it to come from... 
-                #print("effective interaction energy at that distance", dG0)
+                #print("effective interaction energy at that distance", dGeff)
             else: 
                 dGeff = 1e16
 

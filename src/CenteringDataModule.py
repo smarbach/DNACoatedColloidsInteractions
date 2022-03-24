@@ -26,29 +26,7 @@ def centerNakedParticlePotential(height,potential,lambdaD,checkoption,cutForData
     
     #print(xFit,yFit)
     # Model for the fit
-    def nakedParticlePotential(x, B, G,kappa, C):
-        #naked particle potential fit
-        return (B*exp(-x*kappa)+ G*x + C)
     
-    gmodel = Model(nakedParticlePotential)
-    result = gmodel.fit(yFit, x=xFit, B=1, G=0.01, kappa=1/(lambdaD*1e9), C = 0)
-
-    #print("For info, results from the initial fit of the raw data")
-    #print(result.fit_report())
-    if checkoption == 1:
-        
-        plt.plot(height, potential, 'bo')
-        plt.plot(xFit, result.init_fit, 'k--', label='initial fit')
-        plt.plot(xFit, result.best_fit, 'r-', label='best fit')
-        plt.legend(loc='best')
-        plt.show()
-        
-    bestvalues = result.best_values
-    kappaV = bestvalues.get("kappa",0)
-    #kappaV = 1/(lambdaD*1e9)
-    BV = bestvalues.get("B",0)    
-    GV = bestvalues.get("G",0)
-    CV = bestvalues.get("C",0)
     
     hmin = log(kappaV*BV/GV)/kappaV
     phimin = BV*exp(-kappaV*hmin) + GV*hmin + CV
@@ -170,7 +148,7 @@ def centerPotentialRemoveGravity(height,potential,checkoption,gravmin,gravmax,h_
     #print(result.fit_report())
     
 
-    if checkoption == 1:
+    if checkoption == 2:
         fig, ax = plt.subplots()
         ax.plot(height, potential, 'bo')
         ax.plot(xFit, result.init_fit, 'k--', label='minimum initial fit')
@@ -335,7 +313,7 @@ def centerPotentialGravityKnown(height,potential,gravity,checkoption):
     correctIndices = []
     for i in range(len(height)):
         val = height[i]
-        if val < 200 and val > 100:
+        if val < 180 and val > 40:
             correctIndices.append(i)
                 
     #print(indexH)

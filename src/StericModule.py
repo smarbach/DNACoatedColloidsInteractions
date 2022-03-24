@@ -232,16 +232,23 @@ def eMilner(h,sigma,ell,N,evFac):
 
 
 def eMushroom(h,R,sigma):
-    # based on the Eq. (15)of supmat
+    # based on the Eq. (15) of supmat
     x = h/R#[h[ip]/heq for ip in range(len(h))]
     #print(x)
     prefactor = sigma #you need the surface energy
     
     # this is Dolan's model, it is quite sharp...
     if x<1.248:
-        phi = prefactor*(np.log(sqrt(3*x**2/(8*pi))) + pi**2/2*1/(3*x**2));
+        phi = -prefactor*np.log( (sqrt(2*pi/(3*x**2)))*2*(np.exp(-pi**2/(6*x**2)) +np.exp(-2**2*pi**2/(6*x**2)) ) )
     else:
-        phi = -prefactor*np.log(1-2*np.exp(-1/2*3*x**2))
+        phi = -prefactor*np.log(1-2*np.exp(-1/2*3*x**2)+2*np.exp(-2**2/2*3*x**2)-2*np.exp(-3**2/2*3*x**2))
+    
+    # this is Dolan's model, but the order 0 approximation
+    # if x<1.248:
+    #     phi = prefactor*(np.log( (sqrt((3*x**2)/(2*pi)))/2) + pi**2/(6*x**2))
+    # else:
+    #     phi = -prefactor*np.log(1-2*np.exp(-1/2*3*x**2)) #+2*np.exp(-2**2/2*3*x**2)-2*np.exp(-3**2/2*3*x**2))
+    
     
     #this is Daan's model
     #phi = -prefactor*np.log(erf(sqrt(3*x**2/2)))
@@ -548,7 +555,7 @@ def facingPotentialMushroom(Rb,sigmab,Rt,sigmat,heights):
 
     # actually ignore the presence of one and the other
     #print(potential)    
-        hmean1[ih] = height/2
+        hmean1[ih] = height/2 #these values don't matter here since mushroom brushes don't interact
         hmean2[ih] = height/2
         potential[ih] = eMushroom(height, R1,sigma1) + eMushroom(height,R2,sigma2)
     
@@ -717,9 +724,9 @@ def determineRelevantHeights(N1b,N2b,N2t,N1t,ell1,ell2,eV1,eV2,sigmab,sigmat,h0,
             Rb = sqrt(R1b**2 + R2b**2)
             Rt = sqrt(R1t**2 + R2t**2)
             htot = Rb + Rt
-            a = np.linspace(h0+(htot)*0.3,h0+(htot)*0.9,30*nresolution)
-            b = np.linspace(h0+(htot)*0.91,h0+(htot)*2.5,20*nresolution)
-            c = np.linspace(h0+(htot)*2.51,h0+(htot)+600e-9,10*nresolution)   
+            a = np.linspace(h0+(htot)*0.05,h0+(htot)*0.9,30*nresolution)
+            b = np.linspace(h0+(htot)*0.91,150e-9,20*nresolution)
+            c = np.linspace(151e-9,h0+(htot)+600e-9,10*nresolution)   
             d = np.linspace(h0+(htot)+700e-9,slabHeight,3) # THIS IS A PARAMETER FROM FAN'S SETUP
             allheights = np.concatenate((a,b,c,d),axis=None)
             
@@ -748,8 +755,8 @@ def determineRelevantHeights(N1b,N2b,N2t,N1t,ell1,ell2,eV1,eV2,sigmab,sigmat,h0,
                  #now determine relevant height range to explore the potential on
                 a = np.linspace(h0+(htot)*0.3,h0+(htot)*0.55,10*nresolution)
                 b = np.linspace(h0+(htot)*0.555,h0+(htot)*1.5,60*nresolution)
-                c = np.linspace(h0+(htot)*1.505,h0+(htot)*2.5,20*nresolution)
-                cb = np.linspace(h0+(htot)*2.505,h0+(htot)+999e-9,10*nresolution)   
+                c = np.linspace(h0+(htot)*1.505,h0+(htot)*3.0,20*nresolution)
+                cb = np.linspace(h0+(htot)*3.005,h0+(htot)+999e-9,10*nresolution)   
                 d = np.linspace(h0+(htot)+1000e-9,slabHeight,10) # THIS IS A PARAMETER FROM FAN'S SETUP
                 allheights = np.concatenate((a,b,c,cb,d),axis=None)
                 
@@ -761,8 +768,8 @@ def determineRelevantHeights(N1b,N2b,N2t,N1t,ell1,ell2,eV1,eV2,sigmab,sigmat,h0,
             else:
                 #now determine relevant height range to explore the potential on
                 a = np.linspace(h0+(h1t+h2t+h1b+h2b)*0.3,h0+(h1t+h2t+h1b+h2b)*0.9,30*nresolution)
-                b = np.linspace(h0+(h1t+h2t+h1b+h2b)*0.91,h0+(h1t+h2t+h1b+h2b)*2.5,20*nresolution)
-                c = np.linspace(h0+(h1t+h2t+h1b+h2b)*2.51,h0+(h1t+h2t+h1b+h2b)+999e-9,10*nresolution)   
+                b = np.linspace(h0+(h1t+h2t+h1b+h2b)*0.91,h0+(h1t+h2t+h1b+h2b)*3.0,20*nresolution)
+                c = np.linspace(h0+(h1t+h2t+h1b+h2b)*3.01,h0+(h1t+h2t+h1b+h2b)+999e-9,10*nresolution)   
                 d = np.linspace(h0+(h1t+h2t+h1b+h2b)+1000e-9,slabHeight,10) # THIS IS A PARAMETER FROM FAN'S SETUP
                 allheights = np.concatenate((a,b,c,d),axis=None)
             
@@ -781,6 +788,10 @@ def determineRelevantHeights(N1b,N2b,N2t,N1t,ell1,ell2,eV1,eV2,sigmab,sigmat,h0,
 
     
 def calculateCompressedHeights(N1b,N2b,N2t,N1t,ell1,ell2,eV1,eV2,sigmab,sigmat,h,bridgeOption,accountForF127Stretch,mushroomFlag,slideType) :
+    
+    lbot = 0
+    ltop = 0
+    
     
     if mushroomFlag == 1:
         #first determine heterogeneous brush parameters, if any
@@ -802,7 +813,8 @@ def calculateCompressedHeights(N1b,N2b,N2t,N1t,ell1,ell2,eV1,eV2,sigmab,sigmat,h
             ellb = ell1 #doesn't matter which one you pick cause there's nothing there
         Rb = rMushroom(ellb,Nb,'DNA')
         print('Effective radius for the bottom brush (nm)',Rb*1e9)
-            
+        lbot = Rb
+        
         R1t = rMushroom(ell1,N1t,'PEO')
         R2t = rMushroom(ell2,N2t,'DNA')
         Nt = N1t + N2t
@@ -817,6 +829,7 @@ def calculateCompressedHeights(N1b,N2b,N2t,N1t,ell1,ell2,eV1,eV2,sigmab,sigmat,h
             ellt = ell1 #doesn't matter which one you pick cause there's nothing there
         Rt = rMushroom(ellt,Nt,'DNA')
         print('Effective radius for the top brush (nm)',Rt*1e9)
+        ltop = Rt
         
         #then determine compressed height
         if Nb == 0:
@@ -908,8 +921,10 @@ def calculateCompressedHeights(N1b,N2b,N2t,N1t,ell1,ell2,eV1,eV2,sigmab,sigmat,h
             eVt = eV1
             sigmattot = sigmat
         
-        print("effective length of bottom brush",hMilner(sigmabtot,ellb,Nb,eVb)*1e9)
-        print("effective length of top brush",hMilner(sigmattot,ellt,Nt,eVt)*1e9)
+        lbot = hMilner(sigmabtot,ellb,Nb,eVb)
+        print("effective length of bottom brush",lbot*1e9)
+        ltop = hMilner(sigmattot,ellt,Nt,eVt)
+        print("effective length of top brush",ltop*1e9)
         
         #then determine compressed height
         if Nb == 0:
@@ -948,7 +963,8 @@ def calculateCompressedHeights(N1b,N2b,N2t,N1t,ell1,ell2,eV1,eV2,sigmab,sigmat,h
         hrest1 = h1b+h2b+h1t+h2t
         hrest2 = h1b+h2b+h1t+h2t
         #print(h1,h2,h3,h4)
-    return(Emin,Ebridge,h1,h2,h3,h4,ellb,ellt,eVb,eVt,Nb,Nt,hrest1,hrest2,sigmabtot,sigmattot)
+        
+    return(Emin,Ebridge,h1,h2,h3,h4,ellb,ellt,eVb,eVt,Nb,Nt,hrest1,hrest2,sigmabtot,sigmattot,lbot,ltop)
 
   
 def StericPotentialFull(allhs,R,sigmat,ellet,Nt,eVt, sigmab,elleb,Nb,eVb, hrest,Emins,optcolloidcolloidFlag,mushroomFlag,allQ1s,allQ2s):
@@ -986,7 +1002,7 @@ def StericPotentialFull(allhs,R,sigmat,ellet,Nt,eVt, sigmab,elleb,Nb,eVb, hrest,
                 
                 for i in range(len(Emins)):
                     EminsInt[i] = max(EQ1s[i] + EQ2s[i],Emins[i])
-                
+                    EminsInt[i] = Emins[i] # use only Dolan's model
                 #plt.loglog(allhs,EminsInt)
                 #plt.loglog(allhs,Emins)
                 #plt.show()

@@ -54,6 +54,7 @@ DNAmodel = 'ssDNA'      # or 'dsDNA' according to the nature of the non-sticky p
 persistencePEO  = 0.368 # persistence length (nm) of additional polymer (here PEO)
 DNACharge  = 0          # charge per base of DNA, (real from 0 to 1). Leave to 0 to avoid 
                         # lengthy electrostatic calculations, especially at high salt concentration
+                        # also these calculations are potentially unstable.
 wPEO = 0.0978            # polymer excluded volume (adjust to obtain measured brush height)
 
 # model parameters

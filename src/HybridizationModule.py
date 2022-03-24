@@ -126,9 +126,9 @@ def compute_DNAbindingEnergy(Sequence,saltConcentration):
     #bindingEnergies = [H*4.184*10**3*1.01,S*4.184] #94 C +4
     #bindingEnergies = [H*4.184*10**3,S*4.184*1.01] #86 C -4
     #bindingEnergies = [H*4.184*10**3,S*4.184*0.99] #94 C +4
-    #bindingEnergies = [H*4.184*10**3*0.99,S*4.184] #86 C -4 (typically results in a 4degree change)
-
-
+    #bindingEnergies = [H*4.184*10**3*0.997,S*4.184] #86 C -4 
+    # actual error is maybe more like 0.3% error on melting. => 1 C 
+    
     print("Energy Factors Computed with Santaluccia", H, S)
     print("Bare melting T here is", bindingEnergies[0]/bindingEnergies[1] - 273.15) 
     # numbers where checked to be coherent with Unafold predictions
@@ -142,29 +142,93 @@ def Kab(sigmaSticky, h, h1eqin, h2eqin, DeltaG0, hbond,N1,s1,ell1,N2,s2,ell2, h1
     
     #approach a la Daan 1
     if mushroomFlag:
+        
         intermingling = 'transparent'
+        
         if intermingling == 'transparent':
         #for this one we will assume that the mushroom brushes do intermingle completely... 
         # which is not completely true but let's start like that -- later we can also add some penetration length scale
         # here the model is made for symmetric chains
         
-            Req1 = h1eqin
-            Req2 = h2eqin
-            #print('Radius of the brush is',Req*1e9)
+            modelMushroom = 'Dolan'
             
-            Paint = erf(sqrt(3/2)*h/Req1)
-            Pbint = erf(sqrt(3/2)*h/Req2)
-            #Pabfac = 1/2*(3/(pi*Req**2))**(3/2)*exp(-3*h**2/(2*Req**2))*erf(sqrt(3/4)*h/Req)
-            # then integrate exp(-3/4 rab^2/Req^2)*2*pi*rab drab on 0 Infinity 
-            #Pabint = Pabfac*4*pi/3*Req**2
+            if modelMushroom == 'Daan':
             
-            Req = sqrt(Req1**2 + Req2**2)
-            Pabint = sqrt(6/(pi*Req**2))*(erf(sqrt(3/2)*h*Req1/(Req2*Req)) + erf(sqrt(3/2)*h*Req2/(Req1*Req)))*exp(-3/2*h**2/Req**2)
+                Req1 = h1eqin
+                Req2 = h2eqin
+                #print('Radius of the brush is',Req*1e9)
+                
+                Paint = erf(sqrt(3/2)*h/Req1)
+                Pbint = erf(sqrt(3/2)*h/Req2)
+                #Pabfac = 1/2*(3/(pi*Req**2))**(3/2)*exp(-3*h**2/(2*Req**2))*erf(sqrt(3/4)*h/Req)
+                # then integrate exp(-3/4 rab^2/Req^2)*2*pi*rab drab on 0 Infinity 
+                #Pabint = Pabfac*4*pi/3*Req**2
+                
+                Req = sqrt(Req1**2 + Req2**2)
+                Pabint = sqrt(6/(pi*Req**2))*(erf(sqrt(3/2)*h*Req1/(Req2*Req)) + erf(sqrt(3/2)*h*Req2/(Req1*Req)))*exp(-3/2*h**2/Req**2)
+                
+                #value = (sigmaSticky*exp(-DeltaG0)*exp(-3*factorh/(8))*sqrt(12/(2*pi*Rtotr**2))*erf(sqrt(3*factorh/(8)))/((erf(sqrt(3*factorh/(2))))**2))/(Na*10**3)
+                value = sigmaSticky*exp(-DeltaG0)*Pabint/(Paint*Pbint)/(Na*10**3)
+                
+                Kab_h = value
             
-            #value = (sigmaSticky*exp(-DeltaG0)*exp(-3*factorh/(8))*sqrt(12/(2*pi*Rtotr**2))*erf(sqrt(3*factorh/(8)))/((erf(sqrt(3*factorh/(2))))**2))/(Na*10**3)
-            value = sigmaSticky*exp(-DeltaG0)*Pabint/(Paint*Pbint)/(Na*10**3)
+            elif modelMushroom == 'Dolan': 
+                
+                Req1 = h1eqin
+                Req2 = h2eqin
+                
+        
+                def pMushroom(x):
+                # this is Dolan's model, it is quite sharp. Here I use 2nd order approximations that are more precise
+                    if x<1.248:
+                        prob = (sqrt(2*pi/(3*x**2)))*2*(np.exp(-pi**2/(6*x**2)) +np.exp(-2**2*pi**2/(6*x**2)) )
+                    else:
+                        prob = 1-2*np.exp(-1/2*3*x**2)+2*np.exp(-2**2/2*3*x**2)-2*np.exp(-3**2/2*3*x**2)
+                    return (prob) 
+                
+                Paint = pMushroom(h/Req1)
+                Pbint = pMushroom(h/Req2)
+                
+                Rcomp = sqrt(Req1**2+Req2**2) 
+                x1 = h/Req1
+                x2 = h/Req2
+                if h<1.248*Rcomp:
+                    #take the small separation approximation - it's easier to see higher orders there
+                    Pabint = 0
+                    for ns in range(3):
+                        Pabint = Pabint + ns*pi/(2*h)*(-ns*pi*(-1)**ns)*exp(-pi**2*ns**2/(6*x1**2))*exp(-pi**2*ns**2/(6*x2**2)) \
+                            *(2*pi/(3*x1**2))**(1/2)*(2*pi/(3*x2**2))**(1/2)
+                else:
+                    R12 = Req1**2
+                    R22 = Req2**2
+                    d2 = h**2
+                    def pabnm(n,m):
+                        n2 = n**2
+                        m2 = m**2
+                        return( -1/(2*(Rcomp)**(5)) \
+                               *(6*h*Rcomp*( \
+                                            exp(-3*d2*(4*m2*R12+(1-2*n)**2*R22)/(2*R12*R22))*( (2*n-1)*R12 + 2*m*R22 ) \
+                                            - exp(-3*d2*((1+2*m)**2*R12+4*n2*R22)/(2*R12*R22))*(2*n*R12+(1+2*m)*R22)  \
+                                                ) \
+                                 + exp(-3*d2*(1+2*m-2*n)**2/(2*(R12+R22)))* \
+                                     sqrt(6*pi)*Req1*Req2*(-3*d2*(1+2*m-2*n)**2 + R12 + R22)* \
+                                         (erf(sqrt(3/2)*h*((1+2*m)*R12 + 2*n*R22)/(Req1*Req2*Rcomp)) \
+                                          - erf(sqrt(3/2)*h*(2*m*R12 + (2*n-1)*R22)/(Req1*Req2*Rcomp))) \
+                                 ) \
+                               )
+                
+                    Pabint = 0
+                    for ns in range(-1,2):
+                        for ms in range(-1,2):
+                            Pabint = Pabint + pabnm(ns,ms)
+                
+                #I checked and there is actually 
+                value = sigmaSticky*exp(-DeltaG0)*Pabint/(Paint*Pbint)/(Na*10**3)
+                
+                Kab_h = value 
+                               
+                
             
-            Kab_h = value
         elif intermingling == 'withPressure':
             lint = 10e-9
             heff = 1e-9
@@ -914,10 +978,20 @@ def bridgingPotential(allhs,bindingEnergies,hbond,h1eq,h2eq,sb,st,Radius,tetherS
     #print(DeltaS0)
     #print(DeltaH0)
 
+    # to fit R&C data in the same way as they did
+    # correctionCrocker = 1
+    # if correctionCrocker:
+    #     DeltaH0 = DeltaH0 + 0.5*Rg*T
+    # # for sensitivity analysis on DeltaH0
+    # DeltaH0 = DeltaH0*0.997
+
     DeltaG0 = DeltaH0/(Rg*T)-DeltaS0/Rg;
+    # R&C's idea that there is up to 1kT uncertainty
+    
+    
     print('Delta G0/kT at this temperature is',DeltaG0)
-    #print('Delta H0 and Delta S0 are, DeltaG0 at 50C')
-    #print(DeltaH0,DeltaS0,DeltaH0/(Rg*((273.15+55.0)))-DeltaS0/Rg)
+    print('Delta H0 and Delta S0 are')
+    print(DeltaH0/4.18/1000,DeltaS0/4.18)
     
     if sb < st:
         sigmaSticky = st #highest density

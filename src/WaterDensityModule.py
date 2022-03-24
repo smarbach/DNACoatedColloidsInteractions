@@ -45,6 +45,26 @@ def density(T) :
     tck = interpolate.splrep(Tc, densities, s=None,k=1)
     return(interpolate.splev(T, tck, der=0))
 
+def viscosityWater(T):
+    A = 2.414e-5
+    B = 247.8 
+    C = 140
+    return(A*10**(B/(T - C)))
+
+def ONeillFrictionTangential(delta):
+
+    deltas = [0.003202,0.005004,0.0453,0.1276,0.5431,1.3524,2.7622,9.0677]
+    Fx = [4.0223,3.7863,2.6475,2.1514,1.5675,1.3079,1.1738,1.0591] # data from Brenner/Cox/Goldman full expansion
+    
+    if delta > 9.0677:
+        friction = 1.0
+    elif delta > 0.01:
+        tck = interpolate.splrep(deltas, Fx, s=None,k=1)
+        friction = interpolate.splev(delta, tck, der=0)
+    else:        
+        friction =  -8/15*np.log(delta) + 0.9588 #2.65a fromula in Brenner/Cox/Goldman
+        
+    return(friction)
 
 
 

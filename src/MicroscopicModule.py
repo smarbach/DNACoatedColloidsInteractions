@@ -13,12 +13,14 @@ from CenteringDataModule import centerPotentialGravity, centerPotentialGravityKn
 from scipy.optimize import fsolve
 from scipy.integrate import quad
 from scipy.integrate import trapz
-from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 from scipy.special import factorial
 from math import log , exp, sqrt, inf, erf, floor, ceil
 pi = math.pi
 import matplotlib.pyplot as plt
 from numpy.random import randn
+import matplotlib
+
 
 # Constants
 Na = 6.02*10**23
@@ -28,6 +30,9 @@ kB = Rg/Na; #boltzmann constant
 
 def computeStickyParameters(allhs,phi,thresh,idMin,gravHeight):
 
+    #print(phi[idMin])
+    #for phiv in phi:
+    #    print(-phiv +phi[idMin] )
     weights = [exp(-phiv+phi[idMin]) for phiv in phi]
     ftotfit = InterpolatedUnivariateSpline(allhs,weights, k=1)
     
@@ -37,11 +42,13 @@ def computeStickyParameters(allhs,phi,thresh,idMin,gravHeight):
     thresh2 = allhs[idMin] + 600e-9 #600e-9 #min(gravHeight*1e-9*7,max(allhs)) # I changed this recently it used to be   
     # for Fan's data, it doesn't change much if the boundary is between 3 to 6*gravitational Height, but it changes otherwise. 
     # I think it's also because beyond 600nm I'm not resolving things super finely. 
+    print(threshh,allhs[-1])
     for ih in range(len(allhs)):
         if allhs[ih] > threshh and res == 0:
             res = ih
         if allhs[ih] >= thresh2 and res2 == 0:
             res2 = ih
+    print(res,res2)
     if res2 == 0:
         thresh2 = allhs[idMin] + 100e-9
         for ih in range(len(allhs)):
@@ -52,14 +59,30 @@ def computeStickyParameters(allhs,phi,thresh,idMin,gravHeight):
     if res == 0:
         res = len(allhs)-1
     
+    #print(allhs[0],allhs[res],phi[idMin],allhs[idMin])
+    
     sticky = ftotfit.integral(allhs[0],allhs[res])/sqrt(2*pi) #divide by sqrt(2pi) such that this is really the curvature radius
     
     norm = ftotfit.integral(allhs[0],allhs[res2])/sqrt(2*pi) #also divide normalization by sqrt(2pi)
-    hgrav = gravHeight*1e-9
-    addup = 1/sqrt(2*pi)*hgrav*exp(phi[idMin])*(-exp(-allhs[-1]/hgrav) + exp(-thresh2/hgrav))
     
-    norm2 = ftotfit.integral(allhs[0],allhs[-1])/sqrt(2*pi) #also divide normalization by sqrt(2pi)
+    if gravHeight > 0:
+        hgrav = gravHeight*1e-9
+        addup = 1/sqrt(2*pi)*hgrav*exp(phi[idMin])*(-exp(-allhs[-1]/hgrav) + exp(-thresh2/hgrav))
+        
+        norm2 = ftotfit.integral(allhs[0],allhs[-1])/sqrt(2*pi) #also divide normalization by sqrt(2pi)
+    else:
+        addup = 0
     
+    if threshh > thresh2: # where really only gravity matters
+        sticky = ftotfit.integral(allhs[0],allhs[res2])/sqrt(2*pi) #divide by sqrt(2pi) such that this is really the curvature radius
+        if gravHeight > 0:
+            hgrav = gravHeight*1e-9
+            addups = 1/sqrt(2*pi)*hgrav*exp(phi[idMin])*(-exp(-allhs[-1]/hgrav) + exp(-threshh/hgrav))
+        
+            #norm2 = ftotfit.integral(allhs[0],allhs[-1])/sqrt(2*pi) #also divide normalization by sqrt(2pi)
+        else:
+            addups = 0
+        sticky = sticky + addups
     # print("this is supposed to be the norm", norm2)
     # print("this is supposed the shorter norm", norm)
     # print("this is supposed the total norm", norm+addup)
@@ -102,7 +125,7 @@ def makeRadialMap(r,s,radius,zoom,proportion):
 
 
     
-def calculateMicroscopicDetails(allhs,potential,Nbridge,Allsigmaabs,AllKabs,sigmaCut,Radius,Nt,criticalHeight,optcolloid,gravityFactors,geoFactor):
+def calculateMicroscopicDetails(allhs,potential,phiBridge,Nbridge,Allsigmaabs,AllKabs,sigmaCut,Radius,Nt,criticalHeight,optcolloid,gravityFactors,geoFactor):
     hMins = np.zeros(Nt)
     hAves = np.zeros(Nt)
     NAves = np.zeros(Nt)
@@ -172,19 +195,24 @@ def calculateMicroscopicDetails(allhs,potential,Nbridge,Allsigmaabs,AllKabs,sigm
         # plt.plot(allheights2,potential2)
         # plt.show()
         hframe = 1
-        ghere = gravityFactorInitModel*gravityFactors[idT]/gravityFactors[idTslope]
-        phiMin = phi[lowestpotentialindex]
-        h_adjustment = 0
-        h_adjust = 1
-        if (phiMin < -2):
-            gravmins = 40
-            gravmaxs = 180
+        if gravityFactors[idT] > 0:
+            ghere = gravityFactorInitModel*gravityFactors[idT]/gravityFactors[idTslope]
+            phiMin = phi[lowestpotentialindex]
+            h_adjustment = 0
+            h_adjust = 1
+            if (phiMin < -2):
+                gravmins = 40
+                gravmaxs = 180
+            else:
+                gravmins = 50
+                gravmaxs = 200
+            heightCentered, potentialCentered, gravityFactor = centerPotentialRemoveGravityKnownExperiment(allheights2,potential2,0,gravmins,gravmaxs,h_adjust,h_adjustment,hframe,ghere)    
+    
+            gravHeight = 1/gravityFactor*1e9 #gravitational Height in nanometers
         else:
-            gravmins = 50
-            gravmaxs = 200
-        heightCentered, potentialCentered, gravityFactor = centerPotentialRemoveGravityKnownExperiment(allheights2,potential2,0,gravmins,gravmaxs,h_adjust,h_adjustment,hframe,ghere)    
-
-        gravHeight = 1/gravityFactor*1e9 #gravitational Height in nanometers
+            heightCentered = allheights2
+            potentialCentered = potential2
+            gravHeight = np.max([np.max(allhs),1000]) 
 
         #find the min but only up to 30nm from center because the long tails sometimes don't look good
         hidmax = 0
@@ -229,26 +257,96 @@ def calculateMicroscopicDetails(allhs,potential,Nbridge,Allsigmaabs,AllKabs,sigm
         
         distributionPlot = 0
         if distributionPlot == 1:
+            
+            
+            matplotlib.rcParams.update(
+                {'font.sans-serif': 'Arial',
+                 'font.size': 8,
+                 'font.family': 'Arial',
+                 'mathtext.default': 'regular',
+                 'axes.linewidth': 0.35, 
+                 'axes.labelsize': 8,
+                 'xtick.labelsize': 7,
+                 'ytick.labelsize': 7,     
+                 'lines.linewidth': 0.35,
+                 'legend.frameon': False,
+                 'legend.fontsize': 7,
+                 'xtick.major.width': 0.3,
+                 'xtick.minor.width': 0.3,
+                 'ytick.major.width': 0.3,
+                 'ytick.minor.width': 0.3,
+                 'xtick.major.size': 1.5,
+                 'ytick.major.size': 1.5,
+                 'xtick.minor.size': 1,
+                 'ytick.minor.size': 1,
+                })
+            
+            
+            # this is to plot the distribution of #of bonds. so basically p(N)dN ~ p(h)dh such that 
+            # p(N)~ exp(-beta phi(N)) dh/dN and comparing to wether or not this is a Poisson distribution 
             dhdNbCentered = [(allhs[iv+1] - allhs[iv])/(Nbridge[idT][iv+1]- Nbridge[idT][iv]) for iv in range(len(probas)-1)]
             probaCentered = [probas[iv]/2 + probas[iv+1]/2 for iv in range(len(probas)-1)]
             
             for idh in range(len(probas)-1):
                 pNb[idh][idT] = -dhdNbCentered[idh]*probaCentered[idh]/sum(probas)
                 Nplot[idh] = (Nbridge[idT][idh+1] + Nbridge[idT][idh])/2
-                pplot[idh] = pNb[idh][idT]
+                if Nplot[idh] <0.1:
+                    # I don't have resolution below that. 
+                    pplot[idh] = 0
+                else:
+                    pplot[idh] = pNb[idh][idT]
             
             t = np.arange(0,150, 1)
             d = np.exp(-NAves[idT])*np.power(NAves[idT], t)/factorial(t)
             
-            plt.figure(figsize=[3.6, 1.7])
-            ax = plt.subplot()
+            fig,ax = plt.subplots(figsize=(3.7,3.0))
+
             
-        
-            ax.plot(t, [pd*max(pplot)/max(d) for pd in d], label='Poisson',linewidth = 1.5)
+
             
-            ax.plot(Nplot,pplot,'--', label='Distribution',linewidth = 1.5)
-            ax.plot([NAves[idT],NAves[idT]],[0,max(pplot)],linewidth = 1.5)
-            ax.set_xlim(0,150)
+            #print(Nplot)
+            ax.plot([NAves[idT],NAves[idT]],[0,max(pplot)],color = 'black', label='Average $<N_{bound}>$',linewidth = 1.5)
+
+            ax.plot(Nplot,pplot,color='crimson',label='Self-consistent distribution',linewidth = 1.5)
+            ax.plot(t, [pd*max(pplot)/max(d) for pd in d],'--',color='lightpink', label='Poisson distribution \n with same average',linewidth = 1.5)
+
+
+            ax.set_xlim(40.0,140)
+            ax.legend(loc='upper left',handlelength=1, fontsize = 7,markerscale = 0.8,labelspacing = 0.5)   
+
+            ax.set_xlabel('Number of bonds N')
+            ax.set_ylabel('Distribution of bonds p(N)')
+            fig.tight_layout()
+    
+            plt.savefig('MicroscopicDistribution.svg', format='svg', transparent = True)
+            plt.savefig('MicroscopicDistribution.eps', format='eps')
+            plt.show()
+
+
+            
+            plt.show()
+            
+            # at any height you can also compare the average number of bonds to the potential
+            fig,ax = plt.subplots(figsize=(3.7,3.0))
+            
+            #print(Nbridge[0][idT])
+            ax.plot([h*1e9 for h in allhs],[p for p in phiBridge[:][idT]],color='crimson', label='Binding (Self-consistent)',linewidth = 1.5)
+
+            ax.plot([h*1e9 for h in allhs], [-n for n in Nbridge[:][idT]],'--',color='lightpink', label='Binding -$k_BTN_{bound}(h)$ \n (Poisson approximation)',linewidth = 1.5)
+            
+            ax.plot([h*1e9 for h in allhs],[p for p in potential[:][idT]],color = 'black',label='Full potential (Self-consistent)',linewidth = 1.5)
+            ax.plot([h*1e9 for h in allhs],[potential[idT][ih] - Nbridge[idT][ih]- phiBridge[idT][ih] for ih in range(len(allhs))],'--',color='gray',  label='Full potential \n (Poisson approximation)',linewidth = 1.5)
+            
+            ax.set_xlim(37.5,57.5)
+            ax.set_ylim(-60,3)
+            ax.legend(loc='lower right',handlelength=1.5, fontsize = 7,markerscale = 0.8,labelspacing = 0.5)   
+
+            ax.set_xlabel('Separation h (nm)')
+            ax.set_ylabel('Potential $\phi(h)/k_BT$', labelpad = -2)
+            fig.tight_layout()
+    
+            plt.savefig('MicroscopicPotential.svg', format='svg', transparent = True)
+            plt.savefig('MicroscopicPotential.eps', format='eps')
             plt.show()
         
         
@@ -288,14 +386,15 @@ def calculateMicroscopicDetails(allhs,potential,Nbridge,Allsigmaabs,AllKabs,sigm
         for idh in range(nh-lowestpotentialindex):
             heightsMax = allhs[idh+lowestpotentialindex] # current height investigated
             heightsMin = hMins[idT]
-            if abs(Radius - heightsMax + heightsMin) <= Radius:
+            if optcolloid:
+                rinvest = Radius - heightsMax/2 + heightsMin/2
+            else:
+                rinvest = Radius - heightsMax + heightsMin
+            if abs(rinvest) <= Radius:
                 #xR = (Radius**2 - (Radius - heightsMax + heightsMin)**2)/Radius**2
                 #print(xR)
-                if optcolloid:
-                    xvalues[idh][idT] = sqrt((Radius**2 - (Radius - heightsMax/2 + heightsMin/2)**2)/Radius**2)
-                else:
-                    xvalues[idh][idT] = sqrt((Radius**2 - (Radius - heightsMax + heightsMin)**2)/Radius**2)
-            
+                xvalues[idh][idT] = sqrt((Radius**2 - (rinvest)**2)/Radius**2)
+                
                 svalues[idh][idT] = Allsigmaabs[idT][idh+lowestpotentialindex]
 
         res = []
@@ -312,6 +411,35 @@ def calculateMicroscopicDetails(allhs,potential,Nbridge,Allsigmaabs,AllKabs,sigm
         Nheights = np.zeros(nh)
         sigmaMax = np.amax(Allsigmaabs)
         
+        
+        isfound = 0
+        endid = len(allhs)-1
+        for idh in range(nh):
+            if Allsigmaabs[idT][idh] < 0.01*sigmaMax and isfound == 0:
+                endid = idh
+                isfound = 1
+                
+
+        sigmaHeights =  np.flip(Allsigmaabs[idT][0:endid])
+        Heights = np.flip(allhs[0:endid])
+        xs, indices = np.unique(sigmaHeights, return_index=True)
+        hs = Heights[indices]
+        
+        #print(xs)
+        #plt.plot(xs,'+')
+        #plt.show()
+        heightFunc = InterpolatedUnivariateSpline(xs,hs,k=1)
+        
+        hmaxConnected = heightFunc(0.02*sigmaMax)
+       
+        isfound = 0
+        for idh in range(nh):
+            if isfound == 0 and Allsigmaabs[idT][idh] < 0.02*sigmaMax: #Nbridge[idT][idh] > 1: 
+                 isfound = 1
+                 hmaxConnected2 = allhs[idh]
+                 
+        print(hmaxConnected, hmaxConnected2)
+                 
         for idh in range(nh):
             sigmaMin = Allsigmaabs[idT][idh]
             hMin = allhs[idh]
@@ -319,14 +447,18 @@ def calculateMicroscopicDetails(allhs,potential,Nbridge,Allsigmaabs,AllKabs,sigm
             # I don't think this criteria makes sense. instead I would argue for a another criteria on the fraction of sticky ends
             #if isfound == 0 and Nbridge[idT][lowestpotentialindex] - Nbridge[idT][lowestpotentialindex+idh] > 0.9*Nbridge[idT][lowestpotentialindex] and Nbridge[idT][lowestpotentialindex] > 1:
             # this one is better
-            for idh2 in range(nh-idh):
-                sigmaHeight =  Allsigmaabs[idT][idh+idh2]
-                # if the max height has not been found yet and the sticky density is such that only 1% is sticky at this height. 
-                # and if you know that at this height you can find at least some bonds
-                if isfound == 0 and sigmaHeight < 0.02*sigmaMax and sigmaMin > 0.02*sigmaMax: #Nbridge[idT][idh] > 1: 
-                    isfound = 1
-                    hmaxConnected = allhs[idh+idh2]
-            if isfound == 1 and abs(Radius - hmaxConnected + hMin) < Radius: #s[idT]
+            # let's first find how far you can go -- because heights are discrete, you'd better interpolate
+            
+            #non interpolated version
+            # for idh2 in range(nh-idh):
+            #     sigmaHeight =  Allsigmaabs[idT][idh+idh2]
+            #     # if the max height has not been found yet and the sticky density is such that only 1% is sticky at this height. 
+            #     # and if you know that at this height you can find at least some bonds
+                
+            #     if isfound == 0 and sigmaHeight < 0.02*sigmaMax and sigmaMin > 0.02*sigmaMax: #Nbridge[idT][idh] > 1: 
+            #         isfound = 1
+            #         hmaxConnected = allhs[idh+idh2]
+            if sigmaMin > 0.02*sigmaMax and abs(Radius - hmaxConnected + hMin) < Radius: #s[idT]
                 if optcolloid:
                     Nheights[idh] = ((Radius**2 - (Radius - hmaxConnected/2 + hMin/2)**2)/Radius**2)*geoFactor
                 else:
@@ -432,14 +564,193 @@ def calculateMicroscopicDetailsDistorted(allhs,potential,Nt,gravityFactors):
 
 
     
-def calculateMicroscopicDetailsExperiment(allhs,potential):
+def calculateMicroscopicDetailsExperiment(allhs,potential,gravh):
     
-    heightCut2 = 20e-9 #past 20 nm -- this is the resolution that Fan has.  
+    #heightCut2 = 10000e-9 #past 20 nm -- this is the resolution that Fan has.  
     lowestpotentialindex = np.array(potential).argmin()
-    sticky,punbound = computeStickyParameters(allhs,potential,heightCut2,lowestpotentialindex)
+    #print(allhs[-1])
+    sCutoff,sNoCutoff,FWHM,width2k = computeWidth(allhs,potential,lowestpotentialindex,gravh*1e9)
         
         
-    return(sticky,punbound)
+    return(sCutoff,sNoCutoff,FWHM,width2k)
+
+def computeWidth(allhs,phi,idMin,gravHeight):
+
+    weights = [exp(-phiv+phi[idMin]) for phiv in phi]
+    ftotfit = InterpolatedUnivariateSpline(allhs,weights, k=1)
+    
+    
+    weightsx = [(allhs[id]-allhs[idMin])**2*exp(-phi[id]+phi[idMin]) for id in range(len(allhs))]
+    ftotfitx = InterpolatedUnivariateSpline(allhs,weightsx, k=1)
+    
+    xsquare = sqrt(sum(weightsx)/sum(weights))
+    
+    weightsh = [(allhs[id]-allhs[idMin])*exp(-phi[id]+phi[idMin]) for id in range(len(allhs))]
+    ftotfith = InterpolatedUnivariateSpline(allhs,weightsh, k=1)
+    
+    
+    #different methods to calculate widths.. 
+    res = 0
+    res2 = 0
+    threshh = allhs[idMin] + 20e-9 #cutoff method
+    
+    thresh2 = allhs[idMin] + 600e-9 #600e-9 #min(gravHeight*1e-9*7,max(allhs)) # I changed this recently it used to be   
+    endPlot = 250e-6
+    # for Fan's data, it doesn't change much if the boundary is between 3 to 6*gravitational Height, but it changes otherwise. 
+    # I think it's also because beyond 600nm I'm not resolving things super finely. 
+     
+
+    for ih in range(len(allhs)):
+        if allhs[ih] > threshh and res == 0:
+            res = ih
+        if allhs[ih] >= thresh2 and res2 == 0:
+            res2 = ih
+
+    if res2 == 0:
+        if allhs[-1] > 100e-9:
+            #res2 = len(allhs)-1
+            # but maybe actually this can be improved
+            idStart = 0
+            idMax = 0
+            hStart = 80e-9
+            for ih in range(len(allhs)):
+                if allhs[ih] > hStart and idStart == 0:
+                    idStart = ih
+                if allhs[ih] > 200e-9 and idStart > 0 and idMax == 0:
+                    idMax = ih
+            xFit = allhs[idStart:idMax]
+            yFit = phi[idStart:idMax]
+            polyResult = np.polyfit(xFit,yFit,1)
+            p = np.poly1d(polyResult)
+            xFill = np.linspace(hStart,600e-9,100)
+            yFill = p(xFill)
+            #plt.show() 
+    
+            #plt.plot(allhs,phi,'.')
+            phi = np.concatenate((phi[0:idStart-1],yFill),axis=None)
+            allhs = np.concatenate((allhs[0:idStart-1],xFill),axis=None)
+    
+            
+            
+            #plt.plot(xFill,yFill)
+            #plt.show()    
+            
+            weights = [exp(-phiv+phi[idMin]) for phiv in phi]
+            ftotfit = InterpolatedUnivariateSpline(allhs,weights, k=1)
+        
+            res2 = 0
+            for ih in range(len(allhs)):
+               if allhs[ih] >= thresh2 and res2 == 0:
+                    res2 = ih   
+                #endPlot = 250e-6
+        else:
+            res = len(allhs)-1
+#    if res == 0:
+#        res = len(allhs)-1
+        #endPlot = 250e-6
+        
+
+    
+    #print(allhs[0],allhs[res],phi[idMin],allhs[idMin])
+    #print(res,res2,allhs[res],allhs[res2])
+    
+    sticky1 = ftotfit.integral(allhs[0],allhs[res]) #divide by sqrt(2pi) such that this is really the curvature radius
+    #print(sticky1,sticky)
+    
+    sticky = ftotfit.integral(allhs[0],thresh2) #divide by sqrt(2pi) such that this is really the curvature radius
+    stickyX = ftotfitx.integral(allhs[0],thresh2) #divide by sqrt(2pi) such that this is really the curvature radius
+    stickyH = ftotfith.integral(allhs[0],thresh2) #divide by sqrt(2pi) such that this is really the curvature radius
+    
+    #print(sticky1,sticky)
+    if gravHeight > 0 and allhs[-1] > 100e-9:
+        hgrav = gravHeight*1e-9
+        #print(hgrav)
+        addups = hgrav*exp(phi[idMin])*(-exp(-endPlot/hgrav) + exp(-(thresh2)/hgrav))
+        def addh(x):
+            return(- ((x-allhs[idMin])*hgrav + hgrav**2)*exp(-x/hgrav))
+        
+        #print(addh(endPlot)-addh(thresh2))
+        addupsH = (addh(endPlot) - addh(thresh2))*exp(phi[idMin])
+        
+        def addx(x):
+            return((-(x-allhs[idMin])**2*hgrav - 2*(x-allhs[idMin])*hgrav**2 - 2*hgrav**3)*exp(-x/hgrav))
+        
+        addupsX = (addx(endPlot) - addx(thresh2))*exp(phi[idMin])
+        
+        
+            #norm2 = ftotfit.integral(allhs[0],allhs[-1])/sqrt(2*pi) #also divide normalization by sqrt(2pi)
+    else:
+        addups = 0
+        addupsX = 0
+        addupsH = 0
+    #print(addups)
+    #print(stickyX,sticky,addupsX,addups)
+    xsquare = sqrt((stickyX+addupsX)/(sticky+addups))
+    #print(stickyH,addupsH)
+    #print(stickyH+addupsH)
+    hsquare = ((stickyH+addupsH)/(sticky+addups))
+    sticky = sticky + addups
+    
+    # now you can also do the same thing with gravity removed right so 
+    
+    # gravmins = 40
+    # gravmaxs = 180
+    # h_adjust = 0
+    # h_adjustment = 0
+    # hframe = 1
+    # allheights2, potential2 = CenterData(allhs, phi, 1e9)
+    
+    # heightCentered, potentialCentered, gravityFactor = centerPotentialRemoveGravityKnownExperiment(allheights2,potential2,0,gravmins,gravmaxs,h_adjust,h_adjustment,hframe,1/hgrav)
+
+    # idMin = np.array(potentialCentered).argmin()
+    
+    # weights = [exp(-phiv+potentialCentered[idMin]) for phiv in potentialCentered]
+    # ftotfit = InterpolatedUnivariateSpline(allhs,weights, k=1)
+    
+    # sticky1removed = ftotfit.integral(allhs[0],allhs[res]) #divide by sqrt(2pi) such that this is really the curvature radius
+    
+    # if gravHeight > 0 and allhs[-1] > 100e-9:
+    #     hgrav = gravHeight*1e-9
+    #     addups = hgrav*exp(potentialCentered[idMin])*(-exp(-endPlot/hgrav) + exp(-(allhs[res2]-allhs[idMin])/hgrav))
+        
+    #         #norm2 = ftotfit.integral(allhs[0],allhs[-1])/sqrt(2*pi) #also divide normalization by sqrt(2pi)
+    # else:
+    #     addups = 0
+    # sticky1removed = sticky1removed + addups
+    
+    # and you can do the half width thing
+    # (once gravity is removed... )
+    
+    
+    phiMin = phi[idMin]
+    phiMax = phiMin/2
+    #print(phiMin)
+    id1 = 0
+    id2 = 0
+    for ih in range(len(allhs)):
+        if phi[ih] < phiMax and id1 == 0:
+            id1 = ih
+        if phi[ih] > phiMax and id1 > 0 and id2 == 0:
+            id2 = ih
+            
+    FWHM = allhs[id2] - allhs[id1]
+    
+    
+    
+    id1 = 0
+    id2 = 0
+    x = 2
+    for i in range(len(allhs)):
+        if id1 == 0 and phi[i] < phiMin + x: #first value below xkT
+            id1 = i
+        if id1 > 0 and phi[i] > phiMin + x and id2 == 0:
+            id2 = i
+            
+    width2k = allhs[id2] - allhs[id1]
+
+    
+    return(xsquare,hsquare,FWHM, width2k)
+
    
 def extractStatsFromData(allheights, potential, GV, thresh, hslab):
     
