@@ -1,18 +1,25 @@
-## Welcome to the program that calculates DNA Coated colloid interactions
+#####################################################################################
+## Welcome to the program that calculates (DNA-coated) colloidal interactions
+#####################################################################################
 
 This program was created by Sophie Marbach on August 5th, 2021
 Please cite F. Cui, S. Marbach, J. A. Zheng, M. Holmes-Cerfon, D. J. Pine, to appear in Nat. Comm. 2022 if you use this software !!!
+other citations may come in handy according to the specific modules used. 
 
-## To simulate a melting curve simply run the example in the analysis folder
+#####################################################################################
+## INSTALLATION
+#####################################################################################
 
-To do that simply run the Launch_MeltingCurve.py with your favorite python program (located in the analysis/ folder). It should output melting curve information and an .eps plot of the melting curve. 
+## Requirements
 
-The program does 3 runs to refine the analysis around the melting transition that takes a total of ~1min on a standard computer. 
+This code runs under python3
+You may have to install: lmfit, joblib
+pip3 install lmfit
+pip3 install joblib
 
-In command line
-
-cd analysis/ 
-python 3 Launch_MeltingCurve.py
+#####################################################################################
+## TOOL 1: FIND THE POTENTIAL PROFILE OF INTERACTING PARTICLES (ANY KIND)
+#####################################################################################
 
 ## To just launch a potential profile calculations for your favorite DNA coated colloids then you can simply run one!
 
@@ -24,16 +31,46 @@ In command line
 cd analysis/
 python 3 Launch_energyProfile.py 
 
-## Requirements
+#####################################################################################
+## TOOL 2: LAUNCH A MELTING CURVE OF DNA COATED COLLOIDS
+#####################################################################################
 
-This code runs under python3
-You may have to install: lmfit, joblib
-pip3 install lmfit
-pip3 install joblib
+## To simulate a melting curve simply run the example in the analysis folder
 
-## other information 
+To do that simply run the Launch_MeltingCurve.py with your favorite python program (located in the analysis/ folder). It should output melting curve information and an .eps plot of the melting curve. 
 
-The program also saves data information as defaultSave.pickle. 
-In a future release we will explain how to extract further information from this pickle file such as potential profiles and so on and so forth. 
+The program does 3 runs to refine the analysis around the melting transition that takes a total of ~1min on a standard computer. 
+
+In command line
+
+cd analysis/ 
+python 3 Launch_meltingCurve.py
+
+#####################################################################################
+## TOOL 3: FIND THE DIFFUSION COEFFICIENT OF DNA COATED COLLOIDS
+#####################################################################################
+
+## To compute the diffusion coefficient of DNA-coated colloids simply run the example in the analysis folder
+
+To do that simply run the Launch_DiffusionCurve.py with your favorite python program (located in the analysis/ folder). 
+It should output 3 plots (and some information detailed in the code):
+- MyDiffusionSimulation_DiffusionPlot.eps = diffusion coefficients with temperature for a set of particle densities
+- MyDiffusionSimulation_percentage = relative difference between 2 diffusion coefficients (corresponding to 2 different particle densities) with temperature
+- MyDiffusionSimulation_NumberOfBounds = number of bonds with temperature for the chosen particle
+
+The program does 2 runs to refine the analysis around the melting transition that takes a total of ~1min on a standard computer. 
+
+In command line
+
+cd analysis/ 
+python 3 Launch_DiffusionCurve.py
+
+
+#####################################################################################
+## OTHER INFORMATION
+#####################################################################################
+
+The program also saves data as defaultSave.pickle (and for diffusion as MyDiffusionSimulation_DiffusionProperties.pickle). 
+The details of the content of this pickle file will be explained further in a subsequent release. 
 
  
