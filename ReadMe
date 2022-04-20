@@ -2,7 +2,9 @@
 ## Welcome to the program that calculates (DNA-coated) colloidal interactions
 #####################################################################################
 
-This program was created by Sophie Marbach on August 5th, 2021
+This program was created by Sophie Marbach on August 5th, 2021. 
+Special thanks to Brennan Sprinkle for providing a plug in to calculate lubrication forces (used for Tool #3). 
+
 Please cite F. Cui, S. Marbach, J. A. Zheng, M. Holmes-Cerfon, D. J. Pine, to appear in Nat. Comm. 2022 if you use this software !!!
 other citations may come in handy according to the specific modules used. 
 
