@@ -25,6 +25,7 @@ optcolloidcolloid = 0   # if colloid-colloid interaction set to 1
                         # else this is colloid-flat surface interaction
 radius = 2.5            # radius of colloid in microns
 PSdensity  = 1.055      # density (g/cm^3) of PS particle at Room T (22 C)
+dilatationC = 1          # account for colloid material dilatation (should only be 1 if colloid is Polystyrene)
 PSCharge  = -0.019      # charge (C/m^2) of (top) colloid
 
 # general experimental parameters
@@ -34,7 +35,7 @@ criticalHeight = 20         # HALF depth of focus (nm) or maximal height of coll
 slabThick  = 250            # Total accessible height for colloids in microns
                             #(height of water slide)
 saltConcentration  = 0.140  # Salt concentration in mol/L
-optglassSurfaceFlag = 1     # 1 if surface is not covered with PS fine layer (for vdW calculation)
+optglassSurfaceFlag = 1     # 1 if surface is covered with glass (for surface charge electrostatics)
 gravity  = 9.802            # gravity in NYC
 cF127  = 0.3                # (w/v %) surfactant concentration (for effective increased length of brushes)
 
@@ -59,11 +60,20 @@ wPEO = 0.0978            # polymer excluded volume (adjust to obtain measured br
 
 # model parameters
 
-optdeplFlag = 0     # 1 to calculate van der Waals interactions
+optdeplFlag = 0     # 1 to calculate depletion interactions
+depletionTypeC = 'other' # 'F127' or 'other'
+Ragg = 1            # specify agregation radius in nm if you want another type of depletion
 optvdwFlag  = 1     # 1 to calculate van der Waals interactions
+slideType = 'Glass' # 'Glass' for Glass facing PS; otherwise 'PSonGlass' for PS (80nm) on Glass facing PS, or 'PS' for PS facing PS or 'other'
+hamakerC = 3e-12    # in which case you need to specify the hamaker constant
 mushroomFlag  = 0   # 1 if brush is low density, ~ mushroom brush, otherwise 0
 porosity = 0.       # (real from 0 to 1) partial penetration of micelles in brush
 #modelAccuracy = 0   # 1 if you want high model accuracy (long calculation - disabled for now)
+
+# melting option
+optThermo = 1                                                                # 1 = build the thermodynamic melting curve or 0 = kinetic one
+diffusion = (1.38e-23*300)/(6*3.1415*0.001*radius*1e-6)*1e-9/(radius*1e-9)   # parameter for kinetic melting, vertical diffusion in the well
+meltingTime = 1*60                                                           # parameter for kinetic melting, number of seconds to determine if particle is unbound
 
 
 ###############################################################################
@@ -74,8 +84,9 @@ result = returnResult(optcolloidcolloid,radius,criticalHeight,slabThick, \
                       saltConcentration,tetherSeq,NDNAt,NDNAb,NPEOt,NPEOb, \
                       areat,areab,ft,fb,persistencePEO,wPEO,DNACharge,PSCharge, \
                       optglassSurfaceFlag,PSdensity,gravity,optdeplFlag, \
-                      cF127,optvdwFlag,mushroomFlag,porosity,DNAmodel)
-
+                      cF127,optvdwFlag,mushroomFlag,porosity,DNAmodel, slideType, \
+                          depletionType = depletionTypeC, aggRadius = Ragg, hamaker = hamakerC, \
+                          dilatation = dilatationC, meltingOpt = optThermo, diffusionZ = diffusion, meltTime = meltingTime)
     
 ###############################################################################
 # plot and print data
@@ -86,6 +97,12 @@ result = returnResult(optcolloidcolloid,radius,criticalHeight,slabThick, \
 
 punbound =   result['data'] # unbound probability values
 plottemperatureFast = result['labels'] # temperature values
+
+DeltaH0 = result['DeltaH0']
+DeltaS0 = result['DeltaS0']
+
+print('Delta H0 (kcal/K/mol) is', DeltaH0, ' and Delta S0 (cal/mol) is',DeltaS0, 'for this sticky sequence')
+
 
 pmax = punbound[-1]
 Tm = 0

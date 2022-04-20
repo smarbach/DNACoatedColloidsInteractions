@@ -21,7 +21,7 @@ from ElectrostaticsModule import permittivity, lambdaD, Graham, electrostaticPot
 from DepletionModule import DepletionPotential
 from VanDerWaalsModule import VanDerWaalsPotentialFull, VanDerWaalsPotentialDejarguin
 from StericModule import calculateCompressedHeights, StericPotentialFull, determineRelevantHeights, hMilner
-from HybridizationModule import bridgingPotential, compute_DNAbindingEnergy
+from HybridizationModule import bridgingPotential, compute_DNAbindingEnergy, bridgingConstants
 from MicroscopicModule import calculateMicroscopicDetails
 from PolyelectrolyteModule import calculateEffectiveSymmetricParam, polyelectrolytePotential
 from UnifiedModule import unifiedPotentials
@@ -30,8 +30,8 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
                                 cF127, topParameters, bottomParameters, ellDNAnotused, ellPEO, wPEO, slideType, gravityFactor, \
                                 Sequence, srcpath, nresolution, micellePenetrationInsideBrush, PEmodel, eVparameter, \
                                 slabH, bridgingOption, basename, \
-                                criticalHeight, optcolloidcolloidFlag, optdeplFlag, optvdwFlag, mushroomFlag, porosityIn,DNAmodel):
-    
+                                criticalHeight, optcolloidcolloidFlag, optdeplFlag, optvdwFlag, mushroomFlag, porosityIn,DNAmodel,  *args, **kwargs):
+
     # now Tin can be a vector. 
     
     # Global physical constants
@@ -49,8 +49,13 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
     sigmaPS = PSCharge# surface charge in C/m2 of polystyrene
     sigmaGlass = GlassCharge # surface charge in C/m2 of glass
     cm0 = cF127*1e-2*1e3/12600 #convert the F127 concentration in mol/L
+    aggRadiusC = kwargs.get('aggRadius',0)*1e-9 #agregation radius in nm
+    depletionTypeC = kwargs.get('depletionType','default')
     slabHeight = slabH*1e-6 #was given in um
     porosity = porosityIn*1e-9 #was given in nm
+    hamakerC = kwargs.get('hamaker',3e-21)
+    accountForDilatation = kwargs.get('dilatation', 0) # this will be an issue when rerunning codes, need to specify that that option is 1 !!
+    
     ########## TRANSLATE SPECIFIC INPUT PARAMETERS INTO USI ###################
     h0b = bottomParameters[0]*10**(-9) #thickness of the bottom coating
     h0t = topParameters[0]*10**(-9) #thickness of the top coating
@@ -129,7 +134,10 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
     ########## SOME FUNCTION DEFINITION FOR BOUYANCY ###################
     def rhoPST(Temp):
         # Temp is in K 
-        rhoPSt = (PSdensity-(0.000210*(Temp-Tbase-22)))*10**-3/(1*10**-6)
+        if accountForDilatation:
+            rhoPSt = (PSdensity-(0.000210*(Temp-Tbase-22)))*10**-3/(1*10**-6)
+        else:
+            rhoPSt = (PSdensity)*10**-3/(1*10**-6)
         #print("Dilatation at that temperature yields a PS density of")
         #print(rhoPSt/1000)
         return(rhoPSt)
@@ -185,9 +193,7 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
             j=Sequence[i:i+1]
             if j !='T':
                 bridging = 1
-    if bridging:
-        print('There are sticky brushes')
-        bindingEnergies = compute_DNAbindingEnergy(Sequence,saltConcentration)
+    
     
     
     ellDNAbond = ellDNAinf #+ (ellDNA0 - ellDNAinf)/((bNA*saltConcentration)**(nNA/2)+1) # for the bond length use the electrostatics model
@@ -216,6 +222,7 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
         #print(Emins)
         #print(allheights)
      
+        
     # this comes from height redistribution and should always be done like that no matter what the polymer brush is
     if mushroomFlag:
         h1eq = hrest
@@ -230,6 +237,19 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
         #plt.show()
         
     Emins = Emins - Emins[-1] # adjust for the inaccuracy of the trapz integration
+    
+    
+    if bridging:
+        print('There are sticky brushes')
+        # compute binding energy once and for all
+        bindingEnergies = compute_DNAbindingEnergy(Sequence,saltConcentration)
+        # compute binding constants geometrically
+        heightst = [heights1t[ih]+heights2t[ih] for ih in range(len(heights1t))]
+        heightsb = [heights1b[ih]+heights2b[ih] for ih in range(len(heights1b))]
+        #bindingEnergies = compute_DNAbindingEnergy(Sequence,saltConcentration)
+        allKabsC, allQ1sC, allQ2sC = \
+        bridgingConstants(allheights - h0b - h0t,hbond,h1eq,h2eq,sigmastickyb,sigmastickyt,sigmat,ellet,Nt,sigmab,elleb,Nb,heightst,heightsb,mushroomFlag, porosity)
+    
     
     ########## 2: FREE ENERGIES ###################
     # now iterate on temperature
@@ -256,22 +276,24 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
         
         # 2 - b - gravity
         mass = meff(T)
-        #print('mass of the particle is (kg)', mass)
-        if gravityFactor > 0:
-            phiGrav[:][idT] = gravityFactor*allheights
-            #print('PS Density enhancement is', gravityFactor*kB*T/(mass*g))
-            gravityFactors[idT]  = gravityFactor
             
-        else:
-            phiGrav[:][idT] = mass*g*allheights/(kB*T)
-            #print('gravity is (pN)', mass*g*1e12)
-            gravityFactors[idT] =  mass*g/(kB*T)
+        #print('mass of the particle is (kg)', mass)
+        if optcolloidcolloidFlag == 0: #only calculate gravity for surface colloid interactions
+            if gravityFactor > 0:
+                phiGrav[:][idT] = gravityFactor*allheights
+                #print('PS Density enhancement is', gravityFactor*kB*T/(mass*g))
+                gravityFactors[idT]  = gravityFactor
+                
+            else:
+                phiGrav[:][idT] = mass*g*allheights/(kB*T)
+                #print('gravity is (pN)', mass*g*1e12)
+                gravityFactors[idT] =  mass*g/(kB*T)
         
         if optvdwFlag == 2:
             # 2 - c - Van der waals - plate/plate distance counts
-            phiVdW[:][idT] = VanDerWaalsPotentialFull(T - Tbase,saltConcentration,allheights,Rt,slideType,srcpath,optcolloidcolloidFlag)    
+            phiVdW[:][idT] = VanDerWaalsPotentialFull(T - Tbase,saltConcentration,allheights,Rt,slideType,srcpath,optcolloidcolloidFlag, hamaker = hamakerC)    
         elif optvdwFlag == 1:
-            phiVdW[:][idT] = VanDerWaalsPotentialDejarguin(T - Tbase,saltConcentration,allheights,Rt,slideType,srcpath,optcolloidcolloidFlag)    
+            phiVdW[:][idT] = VanDerWaalsPotentialDejarguin(T - Tbase,saltConcentration,allheights,Rt,slideType,srcpath,optcolloidcolloidFlag, hamaker = hamakerC)    
         elif optvdwFlag == 0:
             phiVdW[:][idT] = [0 for h in allheights]
         
@@ -283,7 +305,7 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
             # maybe with a factor 3pi/16... depending on what counts for depletion... the total brush height or the average brush height... 
             #plt.plot(allheights,realseparation)
             if optdeplFlag:
-                phiDepl[:][idT] = micellePenetrationInsideBrush*DepletionPotential(T,cm0,realseparation,Rt,optcolloidcolloidFlag) #+h0t+heights1t[-1]+heights2t[-1] you also increase the effective radius of the particle here.
+                phiDepl[:][idT] = micellePenetrationInsideBrush*DepletionPotential(T,cm0,realseparation,Rt,optcolloidcolloidFlag, aggRadius = aggRadiusC, depletionType = depletionTypeC) #+h0t+heights1t[-1]+heights2t[-1] you also increase the effective radius of the particle here.
                                                                     # this has a very weak effect, so I would not account for it in an attempt to keep the model sane... 
                 
             # 2 - e - steric potential --- no steric potential, no bridging
@@ -302,7 +324,7 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
                 # maybe with a factor 3pi/16... depending on what counts for depletion... the total brush height or the average brush height... 
                 #plt.plot(allheights,realseparation)
                 if optdeplFlag:
-                    phiDepl[:][idT] = micellePenetrationInsideBrush*DepletionPotential(T,cm0,realseparation,Rt,optcolloidcolloidFlag) #+h0t+heights1t[-1]+heights2t[-1] you also increase the effective radius of the particle here.
+                    phiDepl[:][idT] = micellePenetrationInsideBrush*DepletionPotential(T,cm0,realseparation,Rt,optcolloidcolloidFlag, aggRadius = aggRadiusC, depletionType = depletionTypeC) #+h0t+heights1t[-1]+heights2t[-1] you also increase the effective radius of the particle here.
                                                                     # this has a very weak effect, so I would not account for it in an attempt to keep the model sane... 
                 
                 # 2 - e - steric potential # this one does not depend on temperature but it has to be calculated after
@@ -332,7 +354,7 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
                 # maybe with a factor 3pi/16... depending on what counts for depletion... the total brush height or the average brush height... 
                 #plt.plot(allheights,realseparation)
                 if optdeplFlag:
-                    phiDepl[:][idT] = micellePenetrationInsideBrush*DepletionPotential(T,cm0,realseparation,Rt,optcolloidcolloidFlag) #+h0t+heights1t[-1]+heights2t[-1] you also increase the effective radius of the particle here.
+                    phiDepl[:][idT] = micellePenetrationInsideBrush*DepletionPotential(T,cm0,realseparation,Rt,optcolloidcolloidFlag, aggRadius = aggRadiusC, depletionType = depletionTypeC) #+h0t+heights1t[-1]+heights2t[-1] you also increase the effective radius of the particle here.
                 
                 
     
@@ -351,7 +373,7 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
                 #plt.plot(allheights,realseparation)
                 if optdeplFlag:
                     print('Calculated depletion')
-                    phiDepl[:][idT] = micellePenetrationInsideBrush*DepletionPotential(T,cm0,realseparation,Rt,optcolloidcolloidFlag) #+h0t+heights1t[-1]+heights2t[-1] you also increase the effective radius of the particle here.
+                    phiDepl[:][idT] = micellePenetrationInsideBrush*DepletionPotential(T,cm0,realseparation,Rt,optcolloidcolloidFlag, aggRadius = aggRadiusC, depletionType = depletionTypeC) #+h0t+heights1t[-1]+heights2t[-1] you also increase the effective radius of the particle here.
                                                                     # this has a very weak effect, so I would not account for it in an attempt to keep the model sane... 
                 
                 
@@ -362,7 +384,8 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
                     heightsb = [heights1b[ih]+heights2b[ih] for ih in range(len(heights1b))]
                     #bindingEnergies = compute_DNAbindingEnergy(Sequence,saltConcentration)
                     phiBridge[:][idT], NBridge[:][idT], Allsigmaabs[:][idT], sigmasticky, AllKabs[:][idT], DeltaG0s[idT], allQ1s, allQ2s = \
-                    bridgingPotential(allheights - h0b - h0t,bindingEnergies,hbond,h1eq,h2eq,sigmastickyb,sigmastickyt,Rt,Sequence,saltConcentration,T,sigmat,ellet,Nt,sigmab,elleb,Nb,heightst,heightsb,mushroomFlag, porosity,optcolloidcolloidFlag)
+                    bridgingPotential(allheights - h0b - h0t,bindingEnergies,hbond,h1eq,h2eq,sigmastickyb,sigmastickyt,Rt,Sequence,saltConcentration,T,sigmat,ellet,Nt,sigmab,elleb,Nb,heightst,heightsb,mushroomFlag, porosity,optcolloidcolloidFlag, \
+                                      allKabsC, allQ1sC, allQ2sC)
                 #print('Calculated bridging potential')
                 #print(hbond,h1eq,h2eq)
                 
@@ -411,7 +434,7 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
                 # maybe with a factor 3pi/16... depending on what counts for depletion... the total brush height or the average brush height... 
                 #plt.plot(allheights,realseparation)
                 if optdeplFlag:
-                    phiDepl[:][idT] = micellePenetrationInsideBrush*DepletionPotential(T,cm0,realseparation,Rt,optcolloidcolloidFlag) #+h0t+heights1t[-1]+heights2t[-1] you also increase the effective radius of the particle here.
+                    phiDepl[:][idT] = micellePenetrationInsideBrush*DepletionPotential(T,cm0,realseparation,Rt,optcolloidcolloidFlag, aggRadius = aggRadiusC, depletionType = depletionTypeC) #+h0t+heights1t[-1]+heights2t[-1] you also increase the effective radius of the particle here.
                 
                 
                 # 2 - f - bridging potential 
@@ -423,10 +446,12 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
                     if bridgingOption == "symmetric":
                         sigmaSticky = sqrt(sigmastickyb*sigmastickyt)
                         phiBridge[:][idT], NBridge[:][idT], Allsigmaabs[:][idT], sigmasticky, AllKabs[:][idT], DeltaG0s[idT], allQ1s, allQ2s = \
-                        bridgingPotential(allheights - h0b - h0t,bindingEnergies,hbond,hb/2+ht/2,hb/2+ht/2,sigmaSticky,sigmaSticky,Rt,Sequence,saltConcentration,T,sigmaMax,elleff,Neff,sigmaMax,elleff,Neff,heightst,heightsb,mushroomFlag, porosity,optcolloidcolloidFlag)
+                        bridgingPotential(allheights - h0b - h0t,bindingEnergies,hbond,hb/2+ht/2,hb/2+ht/2,sigmaSticky,sigmaSticky,Rt,Sequence,saltConcentration,T,sigmaMax,elleff,Neff,sigmaMax,elleff,Neff,heightst,heightsb,mushroomFlag, porosity,optcolloidcolloidFlag, \
+                                          allKabsC, allQ1sC, allQ2sC)
                     else:
                         phiBridge[:][idT], NBridge[:][idT], Allsigmaabs[:][idT], sigmasticky, AllKabs[:][idT], DeltaG0s[idT], allQ1s, allQ2s = \
-                        bridgingPotential(allheights - h0b - h0t,bindingEnergies,hbond,hb,ht,sigmastickyb,sigmastickyt,Rt,Sequence,saltConcentration,T,sigmat,ellet,Nt,sigmab,elleb,Nb,heightst,heightsb,mushroomFlag, porosity,optcolloidcolloidFlag)
+                        bridgingPotential(allheights - h0b - h0t,bindingEnergies,hbond,hb,ht,sigmastickyb,sigmastickyt,Rt,Sequence,saltConcentration,T,sigmat,ellet,Nt,sigmab,elleb,Nb,heightst,heightsb,mushroomFlag, porosity,optcolloidcolloidFlag, \
+                                          allKabsC, allQ1sC, allQ2sC)
                 
                 fig2, ax2 = plt.subplots(figsize=(6,4))
                 ax2.plot(allheights*1e9,phiBridge[:][idT],label='bridging')
@@ -454,7 +479,7 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
                 # maybe with a factor 3pi/16... depending on what counts for depletion... the total brush height or the average brush height... 
                 #plt.plot(allheights,realseparation)
                 if optdeplFlag:
-                    phiDepl[:][idT] = micellePenetrationInsideBrush*DepletionPotential(T,cm0,realseparation,Rt,optcolloidcolloidFlag) #+h0t+heights1t[-1]+heights2t[-1] you also increase the effective radius of the particle here.
+                    phiDepl[:][idT] = micellePenetrationInsideBrush*DepletionPotential(T,cm0,realseparation,Rt,optcolloidcolloidFlag, aggRadius = aggRadiusC, depletionType = depletionTypeC) #+h0t+heights1t[-1]+heights2t[-1] you also increase the effective radius of the particle here.
                                                                     # this has a very weak effect, so I would not account for it in an attempt to keep the model sane... 
                 
    
@@ -477,14 +502,16 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
                      unifiedPotentials(allheights-h0t-h0b,h1eq,h2eq,sigmastickyb,sigmastickyt,Rt,Sequence,saltConcentration,T,sigmat,ellet,Nt,eVt,sigmab,elleb,Nb,eVb,bridging,optcolloidcolloidFlag,fractionfed)
     
                     phiBridge[:][idT], NBridge[:][idT], Allsigmaabs[:][idT], sigmasticky, AllKabs[:][idT], DeltaG0s[idT], allQ1s, allQ2s = \
-                    bridgingPotential(allheights - h0b - h0t,bindingEnergies,hbond,h1eq,h2eq,sigmastickyb,sigmastickyt,Rt,Sequence,saltConcentration,T,sigmat,ellet,Nt,sigmab,elleb,Nb,heightst,heightsb,mushroomFlag, porosity,optcolloidcolloidFlag)
+                    bridgingPotential(allheights - h0b - h0t,bindingEnergies,hbond,h1eq,h2eq,sigmastickyb,sigmastickyt,Rt,Sequence,saltConcentration,T,sigmat,ellet,Nt,sigmab,elleb,Nb,heightst,heightsb,mushroomFlag, porosity,optcolloidcolloidFlag, \
+                                      allKabsC, allQ1sC, allQ2sC)
                     
                 elif modelUnified == 'minimizeForCompression': 
                 
                     
                     if bridging:
                         phiBridgeBare, NBridge[:][idT], AllsigmaabsBare, sigmasticky, AllKabs[:][idT], DeltaG0s[idT], allQ1s, allQ2s = \
-                        bridgingPotential(allheights - h0b - h0t,bindingEnergies,hbond,h1eq,h2eq,sigmastickyb,sigmastickyt,Rt,Sequence,saltConcentration,T,sigmat,ellet,Nt,sigmab,elleb,Nb,heightst,heightsb,mushroomFlag, porosity,optcolloidcolloidFlag)
+                        bridgingPotential(allheights - h0b - h0t,bindingEnergies,hbond,h1eq,h2eq,sigmastickyb,sigmastickyt,Rt,Sequence,saltConcentration,T,sigmat,ellet,Nt,sigmab,elleb,Nb,heightst,heightsb,mushroomFlag, porosity,optcolloidcolloidFlag, \
+                                          allKabsC, allQ1sC, allQ2sC)
                         fractionfed = [kab for kab in AllKabs[:][idT]]
                     # uncomment for checking purposes only
                     #fractionfed = [0 for kab in AllKabs[:][idT]]
@@ -571,6 +598,7 @@ def compute_potential_profile(radius, PSdensity, gravity, saltConcentration, Tin
     areaFactor = min(sigmastickyb,sigmastickyt)*pi*Rt0**2
     hMinsT,hAvesT,nConnectedT,areaT,depthT,widthT,xvalues,svalues,sticky,punbound,deltaGeff,Rconnected, NAves, nInvolvedT\
         = calculateMicroscopicDetails(allheights,phikT,phiBridge,NBridge,Allsigmaabs,AllKabs,0.9,Rt0,lent,criticalHeight,optcolloidcolloidFlag,gravityFactors,areaFactor)
+    # This was an olde estimate of the number of involved bonds
     #hAvesT = Lvalues
     # indT = 0
     # for rC in Rconnected:

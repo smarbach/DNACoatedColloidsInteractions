@@ -42,13 +42,13 @@ def computeStickyParameters(allhs,phi,thresh,idMin,gravHeight):
     thresh2 = allhs[idMin] + 600e-9 #600e-9 #min(gravHeight*1e-9*7,max(allhs)) # I changed this recently it used to be   
     # for Fan's data, it doesn't change much if the boundary is between 3 to 6*gravitational Height, but it changes otherwise. 
     # I think it's also because beyond 600nm I'm not resolving things super finely. 
-    print(threshh,allhs[-1])
+    #print(threshh,allhs[-1])
     for ih in range(len(allhs)):
         if allhs[ih] > threshh and res == 0:
             res = ih
         if allhs[ih] >= thresh2 and res2 == 0:
             res2 = ih
-    print(res,res2)
+    #print(res,res2)
     if res2 == 0:
         thresh2 = allhs[idMin] + 100e-9
         for ih in range(len(allhs)):
@@ -408,14 +408,21 @@ def calculateMicroscopicDetails(allhs,potential,phiBridge,Nbridge,Allsigmaabs,Al
         sticky[idT],punbound[idT] = computeStickyParameters(allhs,phi,heightCut2,lowestpotentialindex,gravHeight)
 
         # now actually figure out for each height the N in contact 
+        # i e the maximum number of potential bonds at any temperature
+        # this will be done as a weighted average over distances
+        # at each distance you interact with a maximum number of bonds
+        
         Nheights = np.zeros(nh)
         sigmaMax = np.amax(Allsigmaabs)
         
-        
+        cutoff = 0.01
         isfound = 0
+
+        cutoff = cutoff/2
+        
         endid = len(allhs)-1
         for idh in range(nh):
-            if Allsigmaabs[idT][idh] < 0.01*sigmaMax and isfound == 0:
+            if Allsigmaabs[idT][idh] < cutoff*sigmaMax and isfound == 0:
                 endid = idh
                 isfound = 1
                 
@@ -424,50 +431,62 @@ def calculateMicroscopicDetails(allhs,potential,phiBridge,Nbridge,Allsigmaabs,Al
         Heights = np.flip(allhs[0:endid])
         xs, indices = np.unique(sigmaHeights, return_index=True)
         hs = Heights[indices]
-        
-        #print(xs)
-        #plt.plot(xs,'+')
-        #plt.show()
-        heightFunc = InterpolatedUnivariateSpline(xs,hs,k=1)
-        
-        hmaxConnected = heightFunc(0.02*sigmaMax)
-       
-        isfound = 0
-        for idh in range(nh):
-            if isfound == 0 and Allsigmaabs[idT][idh] < 0.02*sigmaMax: #Nbridge[idT][idh] > 1: 
-                 isfound = 1
-                 hmaxConnected2 = allhs[idh]
-                 
-        print(hmaxConnected, hmaxConnected2)
-                 
-        for idh in range(nh):
-            sigmaMin = Allsigmaabs[idT][idh]
-            hMin = allhs[idh]
-            isfound = 0
-            # I don't think this criteria makes sense. instead I would argue for a another criteria on the fraction of sticky ends
-            #if isfound == 0 and Nbridge[idT][lowestpotentialindex] - Nbridge[idT][lowestpotentialindex+idh] > 0.9*Nbridge[idT][lowestpotentialindex] and Nbridge[idT][lowestpotentialindex] > 1:
-            # this one is better
-            # let's first find how far you can go -- because heights are discrete, you'd better interpolate
             
-            #non interpolated version
-            # for idh2 in range(nh-idh):
-            #     sigmaHeight =  Allsigmaabs[idT][idh+idh2]
-            #     # if the max height has not been found yet and the sticky density is such that only 1% is sticky at this height. 
-            #     # and if you know that at this height you can find at least some bonds
-                
-            #     if isfound == 0 and sigmaHeight < 0.02*sigmaMax and sigmaMin > 0.02*sigmaMax: #Nbridge[idT][idh] > 1: 
-            #         isfound = 1
-            #         hmaxConnected = allhs[idh+idh2]
-            if sigmaMin > 0.02*sigmaMax and abs(Radius - hmaxConnected + hMin) < Radius: #s[idT]
-                if optcolloid:
-                    Nheights[idh] = ((Radius**2 - (Radius - hmaxConnected/2 + hMin/2)**2)/Radius**2)*geoFactor
-                else:
-                    Nheights[idh] = ((Radius**2 - (Radius - hmaxConnected + hMin)**2)/Radius**2)*geoFactor
-            else:
-                Nheights[idh] = 0
+        if endid == 0:
+            Npotential[idT] = 0
 
-        Npotentialprobas = [exp(-phi[iv]+phiMin)*Nheights[iv] for iv in range(len(phi))] #boltzmann weights
-        Npotential[idT] = sum(Npotentialprobas)/sum(probas)
+        else:
+                
+            #print(xs)
+            #plt.plot(xs,'+')
+            #plt.show()
+            
+                
+                
+            heightFunc = InterpolatedUnivariateSpline(xs,hs,k=1)
+            
+            # sometimes it's not exactly clear what this cutoff should be exactly, and for large particles its safer to take it to 0.01
+            cutoffSigma = 0.01
+            
+            hmaxConnected = heightFunc(cutoffSigma*sigmaMax)
+           
+            isfound = 0
+            for idh in range(nh):
+                if isfound == 0 and Allsigmaabs[idT][idh] < cutoffSigma*sigmaMax: #Nbridge[idT][idh] > 1: 
+                     isfound = 1
+                     hmaxConnected2 = allhs[idh]
+                     
+            #print(hmaxConnected, hmaxConnected2)
+                     
+            for idh in range(nh):
+                sigmaMin = Allsigmaabs[idT][idh]
+                hMin = allhs[idh]
+                isfound = 0
+                # I don't think this criteria makes sense. instead I would argue for a another criteria on the fraction of sticky ends
+                #if isfound == 0 and Nbridge[idT][lowestpotentialindex] - Nbridge[idT][lowestpotentialindex+idh] > 0.9*Nbridge[idT][lowestpotentialindex] and Nbridge[idT][lowestpotentialindex] > 1:
+                # this one is better
+                # let's first find how far you can go -- because heights are discrete, you'd better interpolate
+                
+                #non interpolated version
+                # for idh2 in range(nh-idh):
+                #     sigmaHeight =  Allsigmaabs[idT][idh+idh2]
+                #     # if the max height has not been found yet and the sticky density is such that only 1% is sticky at this height. 
+                #     # and if you know that at this height you can find at least some bonds
+                    
+                #     if isfound == 0 and sigmaHeight < 0.02*sigmaMax and sigmaMin > 0.02*sigmaMax: #Nbridge[idT][idh] > 1: 
+                #         isfound = 1
+                #         hmaxConnected = allhs[idh+idh2]
+                if sigmaMin > cutoffSigma*sigmaMax and abs(Radius - hmaxConnected + hMin) < Radius: #s[idT]
+                    if optcolloid:
+                        Nheights[idh] = ((Radius**2 - (Radius - hmaxConnected/2 + hMin/2)**2)/Radius**2)*geoFactor
+                    else:
+                        Nheights[idh] = ((Radius**2 - (Radius - hmaxConnected + hMin)**2)/Radius**2)*geoFactor
+                else:
+                    Nheights[idh] = 0
+    
+            Npotentialprobas = [exp(-phi[iv]+phiMin)*Nheights[iv] for iv in range(len(phi))] #boltzmann weights
+            Npotential[idT] = sum(Npotentialprobas)/sum(probas)
+        # max number of potential bonds
         
         
     return(hMins,hAves,Nconnected,area,phiMins,width,xvalues,svalues,sticky,punbound,deltaGeff,Rconnected,NAves,Npotential)

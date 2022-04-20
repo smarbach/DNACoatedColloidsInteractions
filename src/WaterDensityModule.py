@@ -8,6 +8,18 @@ Created on Tue Feb 11 15:48:52 2020
 
 import numpy as np
 from scipy import interpolate
+# might not need all the below codes I think
+# import scipy.spatial as spatial
+# import scipy.sparse.linalg as spla
+# from scipy.linalg import cholesky
+# from scipy.linalg import solve_triangular
+# from functools import partial
+# import copy
+# import inspect
+# import time
+import sys
+# import scipy.sparse as sp
+import Pair_Lubrication as PL
 
 #import matplotlib.gridspec as gridspec
 #import matplotlib.pyplot as plt
@@ -65,6 +77,29 @@ def ONeillFrictionTangential(delta):
         friction =  -8/15*np.log(delta) + 0.9588 #2.65a fromula in Brenner/Cox/Goldman
         
     return(friction)
+
+
+def BrennanSphereSphereTangential(delta,srcpath):
+    Lub = PL.Pair_Lubrication()
+    Lub.load_WS_coefficient_interp_data(srcpath)
+    Lub.load_JO_coefficient_interp_data(srcpath)
+    Lub.set_WS_coefficient_interp_functions()
+    Lub.set_JO_coefficient_interp_functions()
+    
+    #print("all set")
+    r_i = np.array([0.0,0.0,0.0]) # pos of 1
+    r_j = np.array([0.0,0.0,2+delta]) #pos of 2
+    eta = 1.0 #viscosity -- set them to 1 so you don't get weird things
+    a = 1.0# radius -- set them to 1 so you don't get weird things -- and then multiply by R and by eta
+    Res = Lub.Resist(r_i, r_j, eta, a)
+    #print("resistance: ")
+    #print(Res)
+    #Mob = np.linalg.pinv(Res)
+    #print("Mobility: ")
+    #print(Mob)
+    return(Res[1][1]/(6*np.pi))
+    
+
 
 
 

@@ -202,10 +202,51 @@ def VanDerWaalsPotentialPSDer(T,c0,allhs,Radius,srcpath,optColloid):
     #z2 = (2*Radius + h)**2
     #phiVdW = - hamakerConstant/3*(Radius**2/(z2 - 4*Radius**2) + Radius**2/z2 - (1/2)*log(1 - 4*Radius**2/z2))
     
-    return(phiVdW)        
+    return(phiVdW)     
+
+def VanDerWaalsPotentialHamaDer(T,c0,allhs,Radius,srcpath,optColloid,hamakerConstant):
+
+    # in this function T has to be in CELSIUS ! 
+    # and c0 has to be in mol/L
+    # and h in m
+    # vdW potential between plate and sphere
+    phiVdW = 0*allhs
+    for ip in range(len(allhs)):
+        h = allhs[ip]
+        if optColloid:    
+            phiVdW[ip] = - hamakerConstant/(12*pi*h**2)
+        else:
+            phiVdW[ip] = - hamakerConstant/(12*pi*h**2)
         
-def VanDerWaalsPotentialFull(T,c0,allhs,Radius,slideType,srcpath,optColloid): 
+
+    return(phiVdW)     
+
+def VanDerWaalsPotentialHama(T,c0,allhs,Radius,srcpath,optColloid,hamakerConstant):
+
+    # in this function T has to be in CELSIUS ! 
+    # and c0 has to be in mol/L
+    # and h in m
     
+    # vdW potential between plate and sphere
+    phiVdW = 0*allhs
+    for ip in range(len(allhs)):
+        h = allhs[ip]
+        if optColloid:    
+            phiVdW[ip] = - hamakerConstant*hamakerFactorColloid(h, Radius)
+        else:
+            phiVdW[ip] = - hamakerConstant*hamakerFactorPlate(h, Radius)
+                
+    # vdW potential between sphere and sphere
+    #z2 = (2*Radius + h)**2
+    #phiVdW = - hamakerConstant/3*(Radius**2/(z2 - 4*Radius**2) + Radius**2/z2 - (1/2)*log(1 - 4*Radius**2/z2))
+    
+    return(phiVdW)   
+        
+def VanDerWaalsPotentialFull(T,c0,allhs,Radius,slideType,srcpath,optColloid,  *args, **kwargs): 
+    
+    
+    hamaker = kwargs.get('hamaker',None)
+    #just a plate plate interaction
     if slideType == 'Glass': 
         phiVdW = VanDerWaalsPotential(T,c0,allhs,Radius,srcpath,optColloid)
     elif slideType == 'PSonGlass':
@@ -213,12 +254,15 @@ def VanDerWaalsPotentialFull(T,c0,allhs,Radius,slideType,srcpath,optColloid):
     elif slideType == 'PS':
         phiVdW = VanDerWaalsPotentialPS(T,c0,allhs,Radius,srcpath,optColloid)        
     else:
-        print('Slide material is invalid and Van der Waals potential could not be computed')
+        hamaker = kwargs.get('hamaker',None)
+        phiVdW = VanDerWaalsPotentialHama(T,c0,allhs,Radius,srcpath,optColloid,hamaker)        
 
     return(phiVdW)
 
 
-def VanDerWaalsPotentialDejarguin(T,c0,allhs,Radius,slideType,srcpath,optColloid): 
+def VanDerWaalsPotentialDejarguin(T,c0,allhs,Radius,slideType,srcpath,optColloid,  *args, **kwargs): 
+    
+    
     
     if slideType == 'Glass': 
         phiVdWh = VanDerWaalsPotentialDer(T,c0,allhs,Radius,srcpath,optColloid)
@@ -226,12 +270,12 @@ def VanDerWaalsPotentialDejarguin(T,c0,allhs,Radius,slideType,srcpath,optColloid
     elif slideType == 'PSonGlass':
         phiVdWh = VanDerWaalsPotentialGlassOnPSDer(T,c0,allhs,Radius,srcpath,optColloid)     
         phiVdW = DerjaguinIntegral(allhs[-1],Radius,allhs,phiVdWh,optColloid)            
-
     elif slideType == 'PS':
         phiVdWh = VanDerWaalsPotentialPSDer(T,c0,allhs,Radius,srcpath,optColloid) 
         phiVdW = DerjaguinIntegral(allhs[-1],Radius,allhs,phiVdWh,optColloid)            
-
     else:
-        print('Slide material is invalid and Van der Waals potential could not be computed')
+        hamaker = kwargs.get('hamaker',None)
+        phiVdWh = VanDerWaalsPotentialHamaDer(T,c0,allhs,Radius,srcpath,optColloid,hamaker) 
+        phiVdW = DerjaguinIntegral(allhs[-1],Radius,allhs,phiVdWh,optColloid)      
 
     return(phiVdW)

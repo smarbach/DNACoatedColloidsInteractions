@@ -1,11 +1,13 @@
 from PotentialProfileModule import compute_potential_profile
+from NoiseModels import ShotnoiseDistortedPotential,arbitraryNoise
 import numpy as np
 
 def returnResultEnergy(optcolloidcolloidFlag,radius,focal_length,slabThick, \
                           salt_concentration,tether_seq,NDNAt,NDNAb,NPEOt,NPEOb, \
                           areat,areab,ft,fb,persistencePEO,wPEO,DNACharge,PSCharge, \
                           optglassSurfaceFlag,PSdensity,gravity,optdeplFlag, \
-                          cF127,optvdwFlag,mushroomFlag,porosity,DNAmodel,temperature):
+                          cF127,optvdwFlag,mushroomFlag,porosity,DNAmodel,slideType, \
+                              temperature,  *args, **kwargs):
 
     gravityFactor = 0 #no gravity correction here
     
@@ -15,11 +17,11 @@ def returnResultEnergy(optcolloidcolloidFlag,radius,focal_length,slabThick, \
         
     # Chemistry parameters of the fluidic cell
     saltConcentration = salt_concentration #salt concentration in mol/L
-    if optglassSurfaceFlag:
-        slideType = "Glass" #select "Glass" or "PSonGlass" or "PS"
-    else:
-        slideType = "PS"
+    
     slabH = slabThick #height in microns
+    
+
+    
     
     # DNA sequence
     tetherSeq = tether_seq #put only Ts if you don't want bridging - but if there is DNA on one side only it will not bridge
@@ -69,9 +71,14 @@ def returnResultEnergy(optcolloidcolloidFlag,radius,focal_length,slabThick, \
     penetration = 1
     criticalHeight = focal_length
     
+    aggRadiusC = kwargs.get('aggRadius',0)
+    depletionTypeC = kwargs.get('depletionType','default')
+
+    hamakerC = kwargs.get('hamaker',3e-21)
+    dilatationC = kwargs.get('dilatation',0)
     
     # accuracy
-    nresolution = 5 #resolution factor not too high for this web app
+    nresolution = 20 #resolution factor not too high for this web app
 
     
     basename = 'defaultSave'
@@ -84,18 +91,47 @@ def returnResultEnergy(optcolloidcolloidFlag,radius,focal_length,slabThick, \
     #    myTemp.append(Temperature-273)
     myTemp = temperature
     srcpath='../src/'   
-        
+    
+   
+    
     allheights, potential,lambdaV, phiEl, phiGrav, phiDepl, phiVdW, phiSter,  phiBridge, phiPE, hMinsT, hAvesT, nConnectedT, \
                                     areaT, depthT, widthT, xvalues, svalues, sticky, punbound1, deltaGeff, DeltaG0s,Rconnected, \
-                                    nInvolvedT,NAves, gravityFactors = \
+                                    nInvolvedT, NAves, gravityFactors = \
                                     compute_potential_profile( \
                                     radius, PSdensity, gravity, saltConcentration, myTemp, PSCharge, GlassCharge, \
                                     cF127, topParameters, bottomParameters, ellDNA, ellPEO, wPEO, slideType, gravityFactor, \
                                     tetherSeq, srcpath, nresolution, penetration, PEmodel, eVparameter, slabH, bridgingOption, basename, \
-                                    criticalHeight, optcolloidcolloidFlag, optdeplFlag, optvdwFlag, mushroomFlag, porosity, DNAmodel)
- 
+                                    criticalHeight, optcolloidcolloidFlag, optdeplFlag, optvdwFlag, mushroomFlag, porosity, DNAmodel, \
+                                        aggRadius = aggRadiusC, depletionType = depletionTypeC, hamaker = hamakerC, dilatation = dilatationC)
     
-    result = {'allheights': allheights,  'potential': potential,  'phiEl': phiEl, \
-              'phiGrav': phiGrav,  'phiDepl': phiDepl,  'phiVdW': phiVdW,  'phiSter': phiSter,  'phiBridge': phiBridge}
+    print(radius, PSdensity, gravity, saltConcentration, myTemp, PSCharge, GlassCharge, \
+                                    cF127, topParameters, bottomParameters, ellDNA, ellPEO, wPEO, slideType, gravityFactor, \
+                                    tetherSeq, srcpath, nresolution, penetration, PEmodel, eVparameter, slabH, bridgingOption, basename, \
+                                    criticalHeight, optcolloidcolloidFlag, optdeplFlag, optvdwFlag, mushroomFlag, porosity,DNAmodel)
+    
+    result = {'allheights': allheights,  'potential': potential[:][0],  'phiEl': phiEl[:][0], \
+              'phiGrav': phiGrav[:][0],  'phiDepl': phiDepl[:][0],  'phiVdW': phiVdW[:][0],  'phiSter': phiSter[:][0],  'phiBridge': phiBridge[:][0], \
+                  'NAves':NAves, 'punbound':punbound1, 'nInvolvedT':nInvolvedT }
         
     return(result)
+
+
+def noiseProfile(result,optNoise,Nphotons,penetrationDepth,sigmaIn,T):
+    
+    allheights = result['allheights']
+    potential = result['potential']
+    
+    beta = 1/(penetrationDepth*1e-9)
+    sigma = sigmaIn*1e-9
+    
+    if optNoise == 1:
+        phiDistorted = ShotnoiseDistortedPotential(Nphotons,beta,allheights,potential,T[0]+273.15)
+    else:
+        phiDistorted = arbitraryNoise(sigma,allheights,potential,T[0]+273.15)
+    
+    result['phi'] = phiDistorted
+    
+    
+    return(result)
+
+

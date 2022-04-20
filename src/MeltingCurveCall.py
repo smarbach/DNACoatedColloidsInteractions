@@ -1,11 +1,14 @@
 from PotentialProfileModule import compute_potential_profile
+from MicroscopicModule import calculateRateMelting
+from HybridizationModule import compute_DNAbindingEnergy
 import numpy as np
 
 def returnResult(optcolloidcolloidFlag,radius,focal_length,slabThick, \
                           salt_concentration,tether_seq,NDNAt,NDNAb,NPEOt,NPEOb, \
                           areat,areab,ft,fb,persistencePEO,wPEO,DNACharge,PSCharge, \
                           optglassSurfaceFlag,PSdensity,gravity,optdeplFlag, \
-                          cF127,optvdwFlag,mushroomFlag,porosity,DNAmodel):
+                          cF127,optvdwFlag,mushroomFlag,porosity,DNAmodel,slideType, \
+                               *args, **kwargs):
 
     gravityFactor = 0 #no gravity correction here
     
@@ -15,10 +18,7 @@ def returnResult(optcolloidcolloidFlag,radius,focal_length,slabThick, \
         
     # Chemistry parameters of the fluidic cell
     saltConcentration = salt_concentration #salt concentration in mol/L
-    if optglassSurfaceFlag:
-        slideType = "Glass" #select "Glass" or "PSonGlass" or "PS"
-    else:
-        slideType = "PS"
+    
     slabH = slabThick #height in microns
     
     # DNA sequence
@@ -69,7 +69,12 @@ def returnResult(optcolloidcolloidFlag,radius,focal_length,slabThick, \
     penetration = 1
     criticalHeight = focal_length
     
-    
+    aggRadiusC = kwargs.get('aggRadius',0)
+    depletionTypeC = kwargs.get('depletionType','default')
+
+    hamakerC = kwargs.get('hamaker',3e-21)
+    dilatationC = kwargs.get('dilatation',0)
+
     # accuracy
     nresolution = 5 #resolution factor not too high for this web app
 
@@ -94,8 +99,18 @@ def returnResult(optcolloidcolloidFlag,radius,focal_length,slabThick, \
                                     radius, PSdensity, gravity, saltConcentration, myTemp, PSCharge, GlassCharge, \
                                     cF127, topParameters, bottomParameters, ellDNA, ellPEO, wPEO, slideType, gravityFactor, \
                                     tetherSeq, srcpath, nresolution, penetration, PEmodel, eVparameter, slabH, bridgingOption, basename, \
-                                    criticalHeight, optcolloidcolloidFlag, optdeplFlag, optvdwFlag, mushroomFlag, porosity, DNAmodel)
+                                    criticalHeight, optcolloidcolloidFlag, optdeplFlag, optvdwFlag, mushroomFlag, porosity, DNAmodel, \
+                                        aggRadius = aggRadiusC, depletionType = depletionTypeC, hamaker = hamakerC, dilatation = dilatationC)
  
+    optThermo = kwargs.get('meltingOpt',1)
+    diffusionZ = kwargs.get('diffusion', (1.38e-23*300)/(6*3.1415*0.001*radius*1e-6)*1e-9/(radius*1e-9))
+    meltingTime = kwargs.get('meltTime',180)
+    
+    if optThermo == 0:
+        punbound1 =  calculateRateMelting(allheights,potential,diffusionZ,meltingTime,len(myTemp),myTemp,Tmin,Tmax)
+
+    
+    
     # These are some options I will have to add to make this work. 
                                 
     #criticalHeight = 20
@@ -137,12 +152,17 @@ def returnResult(optcolloidcolloidFlag,radius,focal_length,slabThick, \
                                     radius, PSdensity, gravity, saltConcentration, myTemp, PSCharge, GlassCharge, \
                                     cF127, topParameters, bottomParameters, ellDNA, ellPEO, wPEO, slideType, gravityFactor, \
                                     tetherSeq, srcpath, nresolution, penetration, PEmodel, eVparameter, slabH, bridgingOption, basename, \
-                                    criticalHeight, optcolloidcolloidFlag, optdeplFlag, optvdwFlag, mushroomFlag, porosity, DNAmodel)
+                                    criticalHeight, optcolloidcolloidFlag, optdeplFlag, optvdwFlag, mushroomFlag, porosity, DNAmodel, \
+                                        aggRadius = aggRadiusC, depletionType = depletionTypeC, hamaker = hamakerC, dilatation = dilatationC)
+    
+    if optThermo == 0:
+        punbound2 =  calculateRateMelting(allheights,potential,diffusionZ,meltingTime,len(myTemp),myTemp,Tmin,Tmax)
+
     
     valChange = punbound1[-1]/2+punbound1[0]/2
     
     indexRefine = next(x for x, val in enumerate(punbound2) if val > valChange)
-    Trefinemin2 = myTemp[indexRefine] - 1 +273
+    Trefinemin2 = myTemp[indexRefine] - 1.5 +273
     Trefinemax2 = myTemp[indexRefine] + 1 +273
    
     myTemp2 = myTemp
@@ -168,9 +188,13 @@ def returnResult(optcolloidcolloidFlag,radius,focal_length,slabThick, \
                                     radius, PSdensity, gravity, saltConcentration, myTemp, PSCharge, GlassCharge, \
                                     cF127, topParameters, bottomParameters, ellDNA, ellPEO, wPEO, slideType, gravityFactor, \
                                     tetherSeq, srcpath, nresolution, penetration, PEmodel, eVparameter, slabH, bridgingOption, basename, \
-                                    criticalHeight, optcolloidcolloidFlag, optdeplFlag, optvdwFlag, mushroomFlag, porosity, DNAmodel)
+                                    criticalHeight, optcolloidcolloidFlag, optdeplFlag, optvdwFlag, mushroomFlag, porosity, DNAmodel, \
+                                        aggRadius = aggRadiusC, depletionType = depletionTypeC, hamaker = hamakerC, dilatation = dilatationC)
     
-
+    
+    if optThermo == 0:
+        punbound3 =  calculateRateMelting(allheights,potential,diffusionZ,meltingTime,len(myTemp),myTemp,Tmin,Tmax)
+    
     myTemp3 = myTemp
     #print(myTemp1)
     #print(myTemp2)
@@ -195,4 +219,25 @@ def returnResult(optcolloidcolloidFlag,radius,focal_length,slabThick, \
     #labels = [t for t in myTemp]
     myTempout = [sortedArr[0][i] for i in range(Lmax)]
     result = {'labels': myTempout,  'data': punboundout}
+    
+    
+    # also add binding energies
+    
+    bridging = 0
+    if densityTetherBottom*fractionStickyBottom*densityTetherTop*fractionStickyTop > 0: 
+        print('detecting if the sequence is sticky')
+        for i in range(len(tetherSeq)-1):
+            j=tetherSeq[i:i+1]
+            if j !='T':
+                bridging = 1
+    if bridging:
+        print('There are sticky brushes')
+        bindingEnergies = compute_DNAbindingEnergy(tetherSeq,saltConcentration)
+    
+    DeltaS0 = bindingEnergies[1]/4.18 #-466; #entropic contribution of binding (kcal/mol.K)
+    DeltaH0 = bindingEnergies[0]/4.18/1000 #-170*10**3; # -47.8*4.184*1*10**3; #enthalpic contribution of binding (cal/mol)
+    
+    result['DeltaS0'] = DeltaS0
+    result['DeltaH0'] = DeltaH0
+    
     return(result)

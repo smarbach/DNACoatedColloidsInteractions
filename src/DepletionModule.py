@@ -55,7 +55,7 @@ def cmc(T) :
 
 
 # temperetures and number of particules and spherical radius in Angstroms
-# Data from Wanka Macromolecules, 1994
+# Data from Wanka Macromolecules, 1994 for F127 Micelles
 NaggRdata = [[20,7,17],[25,37,57],[30,67,69.4],[35,82,74],[40,97,78.5],[45,106,80.8]] ####
 
 def NaggR(T) :
@@ -92,21 +92,32 @@ def NaggR(T) :
 #print(result['temperature'])
 
 
-def DepletionPotential(T,cm0,allhs,Radius,optColloid):
+def DepletionPotential(T,cm0,allhs,Radius,optColloid, *args, **kwargs):
     
+    aggRadius = kwargs.get('aggRadius',0)
+    depletionType = kwargs.get('depletionType','default')
     # size and number in the aggregate at that temperature
-    Ragg,Nagg = NaggR(T)
-    Ragg = Ragg*10**(-10) # convert the radius from angstroms back to meters
-    #print(Ragg)
-    #Ragg = 501*10**(-9) # data for crockers
-    #Ragg = 101*10**(-9) # data for Bechinger
-    # concentration of aggregates
-    cagg = (cm0 - cmc(T))*Na/Nagg*10**3 #this is still in number/L so that's why we use 10**3 factor here
-    #print(cagg)
-    #cagg = 25.5*10**(18) # data for bechinger
-    Ragg = Ragg*2/sqrt(pi)
+    if depletionType == 'F127':
+        # recorded data for F127
+        Ragg,Nagg = NaggR(T)
+        Ragg = Ragg*10**(-10) # convert the radius from angstroms back to meters
+        #print(Ragg)
+        
+        # concentration of aggregates
+        cagg = (cm0 - cmc(T))*Na/Nagg*10**3 #this is still in number/L so that's why we use 10**3 factor here
+        Ragg = Ragg*2/sqrt(pi) #This is to account for the fact that F127 is a polymer and hence the relevant radius 
+        # is not necessarily the end to end radius
+    else:
+        Ragg = aggRadius #Whatever is inputted here would have to take this into account
+        cagg = cm0
+        #cagg = 25.5*10**(18) # data for bechinger    
+        #Ragg = 501*10**(-9) # data for crockers
+        #Ragg = 101*10**(-9) # data for Bechinger
+        
+    #print(cagg) 
+    
     vFraction = cagg*4/3*pi*Ragg**3
-    pfactor = (1+vFraction + vFraction**2 - vFraction**3)/(1-vFraction)**3
+    pfactor = (1+vFraction + vFraction**2 - vFraction**3)/(1-vFraction)**3 #Carnahagan-Stirling equation of state
     #cagg = 280/(31.5*10**6)*Na
     #print(cm0)
     #print(cmc(T))

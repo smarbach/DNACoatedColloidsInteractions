@@ -426,19 +426,20 @@ def Kab(sigmaSticky, h, h1eqin, h2eqin, DeltaG0, hbond,N1,s1,ell1,N2,s2,ell2, h1
             
             def crosssectionPressing(z):
                 #interaction crosssection
-                def c1(z):
-                    # print('c1')
-                    #print(z,h1eq,h1c)
-                    if z > h1e:
-                        print("problem")
-                    return(concentrationProfile(z,h1eq,h1e))
+                # def c1(z):
+                #     # print('c1')
+                #     #print(z,h1eq,h1c)
+                #     if z > h1e:
+                #         print("problem")
+                #     return(concentrationProfile(z,h1eq,h1e))
                 
-                def c2(z):
-                    # print('c2')
+                # def c2(z):
+                #     # print('c2')
                     
-                    return(concentrationProfile(h-z,h2eq,h2e))
+                #     return(concentrationProfile(h-z,h2eq,h2e))
                 
-                return( c1(z)*c2(z) )
+                # return( c1(z)*c2(z) )
+                return( concentrationProfile(h-z,h2eq,h2e)*concentrationProfile(z,h1eq,h1e))
             
             if h < h1eq+h2eq:
                 # if they partially overlap
@@ -968,9 +969,45 @@ def fattsupply(Kab_h,fractionSticky,sigmaSticky) :
     return(- fsupplyatt_h*sigmaSticky)
 
 
+def bridgingConstants(allhs,hbond,h1eq,h2eq,sb,st,s1,ell1,N1,s2,ell2,N2,allht,allhb,mushroomFlag, porosity):
+
+    DeltaG0 = 0
+    # To evaluate bridging constants start with that
+    
+    
+    
+    if sb < st:
+        sigmaSticky = st #highest density
+        fractionSticky = sb/st
+    elif st < sb:
+        sigmaSticky = sb #highest density
+        fractionSticky = st/sb #here f is smaller than 1
+    else: # they are equal
+        sigmaSticky = sb
+        fractionSticky = 1 # in that case same amount of sticky top and bottom
+    
+    nh = len(allhs)
+    
+    allKabs = np.zeros(nh)
+    allQ1s= np.zeros(nh) 
+    allQ2s= np.zeros(nh)
+    
+        
+    for ih in range(len(allhs)):
+        h = allhs[ih]
+        ht = allht[ih]
+        hb = allhb[ih]
+        # this Kab corresponds to J/2 = sigma Kab in the text. 
+        Kab_h,Q1_h,Q2_h = Kab(sigmaSticky, h, h1eq,h2eq, DeltaG0, hbond,N1,s1,ell1,N2,s2,ell2,ht,hb,mushroomFlag, porosity)
+        allKabs[ih] = Kab_h
+        allQ1s[ih] = Q1_h
+        allQ2s[ih] = Q2_h
+
+    return(allKabs,allQ1s,allQ2s)
 
 
-def bridgingPotential(allhs,bindingEnergies,hbond,h1eq,h2eq,sb,st,Radius,tetherSeq,saltConcentration,T,s1,ell1,N1,s2,ell2,N2,allht,allhb,mushroomFlag, porosity,optcolloid):
+def bridgingPotential(allhs,bindingEnergies,hbond,h1eq,h2eq,sb,st,Radius,tetherSeq,saltConcentration,T,s1,ell1,N1,s2,ell2,N2,allht,allhb, \
+                      mushroomFlag, porosity,optcolloid, allKabsIN,allQ1sIN,allQ2sIN):
 
     
     DeltaS0 = bindingEnergies[1] #-466; #entropic contribution of binding (J/mol.K)
@@ -1023,10 +1060,11 @@ def bridgingPotential(allhs,bindingEnergies,hbond,h1eq,h2eq,sb,st,Radius,tetherS
         ht = allht[ih]
         hb = allhb[ih]
         # this Kab corresponds to J/2 = sigma Kab in the text. 
-        Kab_h,Q1_h,Q2_h = Kab(sigmaSticky, h, h1eq,h2eq, DeltaG0, hbond,N1,s1,ell1,N2,s2,ell2,ht,hb,mushroomFlag, porosity)
+        #Kab_h,Q1_h,Q2_h = Kab(sigmaSticky, h, h1eq,h2eq, DeltaG0, hbond,N1,s1,ell1,N2,s2,ell2,ht,hb,mushroomFlag, porosity)
+        Kab_h = allKabsIN[ih]*exp(-DeltaG0)
         allKabs[ih] = Kab_h
-        allQ1s[ih] = Q1_h
-        allQ2s[ih] = Q2_h
+        allQ1s[ih] = allQ1sIN[ih]
+        allQ2s[ih] = allQ2sIN[ih]
         #if Kab_h > 0: 
         #    print("kab here is", Kab_h)
         ftot_h = 0

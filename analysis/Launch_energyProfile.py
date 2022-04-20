@@ -10,7 +10,7 @@ Created on Sat Oct 24 09:24:55 2020
 # For more details on outputs (beyond the melting curve), refer to commented section below
 import sys
 sys.path.append('../src/')
-from EnergyProfileCall import returnResultEnergy
+from EnergyProfileCall import returnResultEnergy, noiseProfile
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -25,6 +25,7 @@ optcolloidcolloid = 0   # if colloid-colloid interaction set to 1
                         # else this is colloid-flat surface interaction
 radius = 2.5            # radius of colloid in microns
 PSdensity  = 1.055      # density (g/cm^3) of PS particle at Room T (22 C)
+dilatationC = 1          # account for colloid material dilatation (should only be 1 if colloid is Polystyrene)
 PSCharge  = -0.019      # charge (C/m^2) of (top) colloid
 
 # general experimental parameters
@@ -56,15 +57,26 @@ persistencePEO  = 0.368 # persistence length (nm) of additional polymer (here PE
 DNACharge  = 0          # charge per base of DNA, (real from 0 to 1). Leave to 0 to avoid 
                         # lengthy electrostatic calculations, especially at high salt concentration
                         # also these calculations are potentially unstable.
-wPEO = 0.0978            # polymer excluded volume (adjust to obtain measured brush height)
 
 # model parameters
 
-optdeplFlag = 0     # 1 to calculate van der Waals interactions
+optdeplFlag = 0     # 1 to calculate depletion interactions
+depletionTypeC = 'other' # 'F127' or 'other'
+Ragg = 1            # specify agregation radius in nm if you want another type of depletion
 optvdwFlag  = 1     # 1 to calculate van der Waals interactions
+slideType = 'Glass' # 'Glass' for Glass facing PS; otherwise 'PSonGlass' for PS (80nm) on Glass facing PS, or 'PS' for PS facing PS or 'other'
+hamakerC = 3e-12    # in which case you need to specify the hamaker constant
 mushroomFlag  = 0   # 1 if brush is low density, ~ mushroom brush, otherwise 0
 porosity = 0.       # (real from 0 to 1) partial penetration of micelles in brush
 #modelAccuracy = 0   # 1 if you want high model accuracy (long calculation - disabled for now)
+wPEO = 0.0978       # polymer excluded volume (can be adjusted to obtain measured brush height)
+
+optNoise  = 1               # apply a noise kernel to prediction
+optShot  = 1                # shot noise or gaussian kernel
+photonTarget  = 1000         # target photon number for shot noise
+penetrationDepth  = 100     # penetration depth of the TIRM in nm
+gaussianWidth  = 10         # gaussian kernel width in nm
+
 
 
 ###############################################################################
@@ -75,8 +87,13 @@ result = returnResultEnergy(optcolloidcolloid,radius,criticalHeight,slabThick, \
                       saltConcentration,tetherSeq,NDNAt,NDNAb,NPEOt,NPEOb, \
                       areat,areab,ft,fb,persistencePEO,wPEO,DNACharge,PSCharge, \
                       optglassSurfaceFlag,PSdensity,gravity,optdeplFlag, \
-                      cF127,optvdwFlag,mushroomFlag,porosity,DNAmodel,temperature)
+                      cF127,optvdwFlag,mushroomFlag,porosity,DNAmodel,slideType,temperature, \
+                          depletionType = depletionTypeC, aggRadius = Ragg, hamaker = hamakerC, \
+                          dilatation = dilatationC)
 
+if optNoise == 1:
+    result = noiseProfile(result,optShot,photonTarget,penetrationDepth,gaussianWidth,temperature)
+    
     
 ###############################################################################
 # plot and print data
@@ -94,13 +111,16 @@ phiBridge = result['phiBridge'] # binding interactions
 
 indT = 0 #temperature index, in this example we're looking at just 1 temperature value
 fig, ax6 = plt.subplots(figsize=[3.6,2.5])
-ax6.plot(allheights*1e9,potential[:][indT],':',color='black',lw = 1, label = 'potential')
-ax6.plot(allheights*1e9,phiSter[:][indT],color='dodgerblue', lw = 1, label = 'steric')
-ax6.plot(allheights*1e9,phiBridge[:][indT],color='crimson', lw = 1, label = 'binding')
-ax6.plot(allheights*1e9,phiVdW[:][indT],color='orange', lw = 1, alpha = 0.7, label = 'van der Waals')
-ax6.plot(allheights*1e9,phiDepl[:][indT],color='hotpink', lw = 1, alpha = 0.7, label = 'depletion')
-ax6.plot(allheights*1e9,phiEl[:][indT],color='limegreen', lw = 1, alpha = 0.7, label = 'electrostatics')
-ax6.plot(allheights*1e9,phiGrav[:][indT],color='mediumblue', alpha = 0.7, lw = 1, label = 'gravity')
+ax6.plot(allheights*1e9,potential,':',color='black',lw = 1, label = 'potential')
+if optNoise == 1:
+    phi = result['phi'] # potential profile
+    ax6.plot(allheights*1e9,[p-phi[-100]+potential[-100] for p in phi],color='black',lw = 1, label = 'potential with noise')
+ax6.plot(allheights*1e9,phiSter,color='dodgerblue', lw = 1, label = 'steric')
+ax6.plot(allheights*1e9,phiBridge,color='crimson', lw = 1, label = 'binding')
+ax6.plot(allheights*1e9,phiVdW,color='orange', lw = 1, alpha = 0.7, label = 'van der Waals')
+ax6.plot(allheights*1e9,phiDepl,color='hotpink', lw = 1, alpha = 0.7, label = 'depletion')
+ax6.plot(allheights*1e9,phiEl,color='limegreen', lw = 1, alpha = 0.7, label = 'electrostatics')
+ax6.plot(allheights*1e9,phiGrav,color='mediumblue', alpha = 0.7, lw = 1, label = 'gravity')
     
 ax6.set_xlabel('Height $h$ (nm)')
 ax6.set_ylabel('Potential $\Phi(h)$ ($k_B T$)')
@@ -118,4 +138,3 @@ ax6.legend(loc='lower right',handlelength=1, fontsize = 6,markerscale = 0.8,labe
 plt.tight_layout()
 plt.savefig('interactionProfile'+'.eps', format='eps')
 plt.show()
-
