@@ -71,8 +71,8 @@ porosity = 0.       # (real from 0 to 1) partial penetration of micelles in brus
 #modelAccuracy = 0   # 1 if you want high model accuracy (long calculation - disabled for now)
 wPEO = 0.0978       # polymer excluded volume (can be adjusted to obtain measured brush height)
 
-optNoise  = 1               # apply a noise kernel to prediction
-optShot  = 1                # shot noise or gaussian kernel
+optNoise  = 0               # apply a noise kernel to prediction
+optShot  = 1                # shot noise (1) or gaussian kernel (0)
 photonTarget  = 1000         # target photon number for shot noise
 penetrationDepth  = 100     # penetration depth of the TIRM in nm
 gaussianWidth  = 10         # gaussian kernel width in nm
@@ -90,8 +90,12 @@ result = returnResultEnergy(optcolloidcolloid,radius,criticalHeight,slabThick, \
                       cF127,optvdwFlag,mushroomFlag,porosity,DNAmodel,slideType,temperature, \
                           depletionType = depletionTypeC, aggRadius = Ragg, hamaker = hamakerC, \
                           dilatation = dilatationC)
-
+print('The potential profile is calculated.')
+    
+    
+    
 if optNoise == 1:
+    print('Now calculating the noise distortion, this may take some time')
     result = noiseProfile(result,optShot,photonTarget,penetrationDepth,gaussianWidth,temperature)
     
     
@@ -136,5 +140,5 @@ ax6.set_ylim(-8,6)
 
 ax6.legend(loc='lower right',handlelength=1, fontsize = 6,markerscale = 0.8,labelspacing = 0.5) 
 plt.tight_layout()
-plt.savefig('interactionProfile'+'.eps', format='eps')
+plt.savefig('interactionProfile'+'.pdf', format='pdf')
 plt.show()

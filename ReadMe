@@ -31,7 +31,7 @@ The program will output a plot with the energy profile and will break down the c
 In command line
 
 cd analysis/
-python 3 Launch_energyProfile.py 
+python3 Launch_energyProfile.py 
 
 #####################################################################################
 ## TOOL 2: LAUNCH A MELTING CURVE OF DNA COATED COLLOIDS
@@ -46,7 +46,7 @@ The program does 3 runs to refine the analysis around the melting transition tha
 In command line
 
 cd analysis/ 
-python 3 Launch_meltingCurve.py
+python3 Launch_meltingCurve.py
 
 #####################################################################################
 ## TOOL 3: FIND THE DIFFUSION COEFFICIENT OF DNA COATED COLLOIDS
@@ -65,7 +65,7 @@ The program does 2 runs to refine the analysis around the melting transition tha
 In command line
 
 cd analysis/ 
-python 3 Launch_DiffusionCurve.py
+python3 Launch_DiffusionCurve.py
 
 
 #####################################################################################
