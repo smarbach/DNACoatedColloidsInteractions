@@ -5,8 +5,27 @@
 This program was created by Sophie Marbach on August 5th, 2021. 
 Special thanks to Brennan Sprinkle for providing a plug in to calculate lubrication forces (used for Tool #3). 
 
-Please cite F. Cui, S. Marbach, J. A. Zheng, M. Holmes-Cerfon, D. J. Pine, to appear in Nat. Comm. 2022 if you use this software !!!
-other citations may come in handy according to the specific modules used. 
+Please cite relevant manuscripts or software versions if you use this software:
+
+####### DNA Coated colloids interactions publication ########
+Comprehensive view of microscopic interactions between DNA-coated colloids
+F Cui, S Marbach, JA Zheng, M Holmes-Cerfon, DJ Pine
+Nature communications 13 (1), 1-10
+
+####### DNA Coated colloids interactions software ########
+S Marbach (2022), “DNA Coated Colloids Interactions”, v1.0, Zenodo, doi.org/10.5281/zenodo.6383258.
+
+####### DNA Coated colloids diffusion publications ########
+The Nanocaterpillar's Random Walk: Diffusion With Ligand-Receptor Contacts
+S Marbach, JA Zheng, M Holmes-Cerfon
+Soft Matter D1SM01544C; arXiv preprint arXiv:2110.03112
+
+Can mass change the diffusion coefficient of DNA-coated colloids?
+S Marbach, M Holmes-Cerfon
+arXiv preprint arXiv:2112.05266
+
+####### DNA Coated colloids diffusion software ########
+S Marbach (2022), “DNA Coated Colloids Interactions”,  --- to be released
 
 #####################################################################################
 ## INSTALLATION

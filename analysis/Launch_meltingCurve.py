@@ -143,6 +143,6 @@ ax.set_ylim(0,1)
 # ax5.xaxis.set_ticks_position('bottom')
 
 fig.tight_layout()
-plt.savefig('meltingCurve'+'.eps', format='eps')
+plt.savefig('meltingCurve'+'.pdf', format='pdf')
 plt.show()
 
